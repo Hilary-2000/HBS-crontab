@@ -42,7 +42,7 @@
         // if there are those that their account are still inactive activate them
         $date_today = date("YmdHis");
         echo $date_today;
-        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_untill` < '$date_today' AND `client_freeze_status` = '1'";
+        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_untill` < '$date_today' AND `client_freeze_status` = '1' AND `client_freeze_untill` != '00000000000000'";
         $stmt = $conn2->prepare($select);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -95,11 +95,11 @@
                 }
 
                 // NOW enable the user
-                // activateUser($client_id);
+                activateUser($client_id);
             }
         }
         // then second freeze clients that are to be frozen
-        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_status` = '1' AND `client_freeze_untill` > '$date_today'";
+        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_status` = '1' AND `client_freeze_untill` > '$date_today' AND `client_freeze_untill` != '00000000000000'";
         $stmt = $conn2->prepare($select);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -119,14 +119,14 @@
                 $stmt = $conn->prepare($update);
                 if($stmt->execute()){
                     echo "<br>Client deactivated";
-                    // de_activate($client_id);
+                    de_activate($client_id);
                 }else {
                     echo "<br>error occured";
                 }
             }
         }
         // then third unfreeze clients that are to be unfrozen
-        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_status` = '0' AND `client_freeze_untill` > '$date_today'";
+        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_status` = '0' AND `client_freeze_untill` > '$date_today' AND `client_freeze_untill` != '00000000000000'";
         $stmt = $conn2->prepare($select);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -145,7 +145,7 @@
                 $stmt = $conn->prepare($update);
                 if($stmt->execute()){
                     echo "<br>Client activated";
-                    // activateUser($client_id);
+                    activateUser($client_id);
                 }else {
                     echo "<br>error occured";
                 }
