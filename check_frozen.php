@@ -41,12 +41,13 @@
         // select client whose freezing date is due
         // if there are those that their account are still inactive activate them
         $date_today = date("YmdHis");
-        echo $date_today;
-        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_untill` < '$date_today' AND `client_freeze_status` = '1' AND `client_freeze_untill` != '00000000000000'";
+        // echo $date_today;
+        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_untill` < '$date_today' AND `client_freeze_status` = '0' AND `client_freeze_untill` != '00000000000000' AND `client_freeze_untill` != ''";
         $stmt = $conn2->prepare($select);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
+			echo json_encode($row)."<br>";
             // get the cleint status
             $payments_status = $row['payments_status'];
             $client_status = $row['client_status'];
@@ -78,7 +79,8 @@
                         if (strlen($send_message) > 0 && $send_message != null) {
                             $trans_amount = 0;
                             $message = message_content($send_message,$client_id,$conn,$trans_amount);
-                            send_sms($conn,$client_phone,$message,$client_id);
+							// echo $message."<br>";
+                            // send_sms($conn,$client_phone,$message,$client_id);
                         }
                     }else {
                         echo  "<br>An error occured!";
@@ -99,12 +101,12 @@
             }
         }
         // then second freeze clients that are to be frozen
-        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_status` = '1' AND `client_freeze_untill` > '$date_today' AND `client_freeze_untill` != '00000000000000'";
+        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_status` = '1' AND `client_freeze_untill` > '$date_today' AND `client_freeze_untill` != '00000000000000' AND `client_freeze_untill` != ''";
         $stmt = $conn2->prepare($select);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
-            // echo json_encode($row);
+            // echo json_encode($row)."<br>";
             // check clients that are frozen and need to be deactivated
             $payments_status = $row['payments_status'];
             $client_status = $row['client_status'];
@@ -126,11 +128,12 @@
             }
         }
         // then third unfreeze clients that are to be unfrozen
-        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_status` = '0' AND `client_freeze_untill` > '$date_today' AND `client_freeze_untill` != '00000000000000'";
+        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_status` = '0' AND `client_freeze_untill` > '$date_today' AND `client_freeze_untill` != '00000000000000' AND `client_freeze_untill` != ''";
         $stmt = $conn2->prepare($select);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
+            // echo json_encode($row)."<br>";
             // check clients that are frozen and need to be deactivated
             $payments_status = $row['payments_status'];
             $client_status = $row['client_status'];
@@ -151,6 +154,51 @@
                 }
             }
         }
+
+		// get all clients that are to be deactivated in the future
+		$today = date("YmdHis");
+		$select = "SELECT * FROM `client_tables` WHERE `client_freeze_untill` > '".$today."' AND `freeze_date` <= '".$today."' AND `client_freeze_status` = '0'";
+		// echo $select;
+		$stmt = $conn2->prepare($select);
+		$stmt->execute();
+		$result = $stmt->get_result();
+		if ($result) {
+			while ($row = $result->fetch_assoc()) {
+				echo json_encode($row)."<br>";
+				$update = "UPDATE `client_tables` SET `client_freeze_status` = '1',  `date_changed` = '".date("YmdHis")."', `payments_status` = '0', `freeze_date` = '".date("YmdHis")."' WHERE `client_id` = '".$row['client_id']."'";
+				$stmt = $conn2->prepare($update);
+				$stmt->execute();
+
+				// deactivate the user
+				de_activate($row['client_id']);
+
+				// SEND THE CLIENT A MESSAGE OF freezing
+				$message_contents = get_sms($conn);
+				if (count($message_contents) > 4) {
+					$message = $message_contents[5]->messages;
+					$send_message = "";
+					for ($index=0; $index < count($message); $index++) {
+						if ($message[$index]->Name == "account_frozen") {
+							$send_message = $message[$index]->message;
+						}
+					}
+					if (strlen($send_message) > 0 && $send_message != null) {
+						$trans_amount = 0;
+						$freeze_start = date_create($row['freeze_date']);
+						$freeze_end = date_create($row['client_freeze_untill']);
+						$diff=date_diff($freeze_start,$freeze_end);
+						// $days = $diff->format("%R %a days");
+						$day_frozen = $diff->format("%a");
+						$freeze_dates = $row['client_freeze_untill'] == "00000000000000" ? "" : $row['client_freeze_untill'];
+						$message = message_content($send_message,$row['client_id'],$conn,$trans_amount,$day_frozen,$row['freeze_date'],$freeze_dates);
+						// echo "<br>".$message.json_encode($row);
+						send_sms($conn,$row['clients_contacts'],$message,$row['client_id']);
+					}
+				}else {
+					echo  "<br>An error occured!";
+				}
+			}
+		}
     }
 
 	function getSMSKeys($conn){
@@ -188,6 +236,7 @@
 		}
 		return $sms_api_keys;
 	}
+
 	function send_sms($conn,$phone_number,$message,$acc_id){
 		// get the sms api keys
 		$sms_api_keys = getSMSKeys($conn);
@@ -228,11 +277,12 @@
 		$stmt->bind_param("ssssss",$message,$now,$phone_number,$message_status,$acc_id,$sms_type);
 		$stmt->execute();
 	}
+	
 	function activateUser($client_id){
 
 		$curl_handle = curl_init();
 
-        $url = "http://localhost:8000/activate_user/".$client_id;
+        $url = "http://192.168.88.241:8000/activate_user/".$client_id;
 		// header("Location: ".$url."", true, 301);
         // Set the curl URL option
         curl_setopt($curl_handle, CURLOPT_URL, $url);
@@ -250,7 +300,7 @@
 	function de_activate($client_id){
 		$curl_handle = curl_init();
 
-        $url = "http://localhost:8000/deactivate_user/".$client_id;
+        $url = "http://192.168.88.241:8000/deactivate_user/".$client_id;
 		// header("Location: ".$url."", true, 301);
 
         // Set the curl URL option
@@ -277,7 +327,7 @@
 			}
 		}
 	}
-	function message_content($data,$user_id,$conn,$trans_amount) {
+	function message_content($data,$user_id,$conn,$trans_amount,$freeze_days = null,$future_freeze_date = null,$freeze_date = null) {
 		$exp_date = date("dS-M-Y");
 		$reg_date = date("dS-M-Y");
 		$monthly_payment = 0;
@@ -335,6 +385,9 @@
 		$data = str_replace("[today]", $today, $data);
 		$data = str_replace("[now]", $now,$data);
 		$data = str_replace("[min_amnt]", $minimum_pay,$data);
+		$data = str_replace("[days_frozen]", $freeze_days." Day(s)",$data);
+		$data = str_replace("[frozen_date]", date("D dS M Y",strtotime($future_freeze_date)),$data);
+		$data = str_replace("[unfreeze_date]", ($freeze_date == "Indefinite" ? "Indefinite Date" : date("dS M Y \a\\t h:iA",strtotime($freeze_date))),$data);
 		return $data;
 	}
 ?>
