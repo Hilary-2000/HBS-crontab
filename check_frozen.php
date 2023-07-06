@@ -128,7 +128,7 @@
             }
         }
         // then third unfreeze clients that are to be unfrozen
-        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_status` = '0' AND `client_freeze_untill` > '$date_today' AND `client_freeze_untill` != '00000000000000' AND `client_freeze_untill` != ''";
+        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_status` = '0' AND `client_freeze_untill` > '$date_today' AND `next_expiration_date` > '$date_today' AND `client_freeze_untill` != '00000000000000' AND `client_freeze_untill` != ''";
         $stmt = $conn2->prepare($select);
         $stmt->execute();
         $result = $stmt->get_result();
