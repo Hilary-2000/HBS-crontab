@@ -167,14 +167,20 @@
                 $client_freeze_untill2 = $row_locale['client_freeze_untill'];
                 $reffered_by2 = $row_remote['reffered_by'];
                 $reffered_by1 = $row_locale['reffered_by'];
+                $min_amount_2 = $row_remote['min_amount'];
+                $min_amount_1 = $row_locale['min_amount'];
                 if ($wallet_locale == $wallet_remote && $next_exp_locale == $next_exp_remote && 
-                    $client_freeze_status1 == $client_freeze_status2 && $client_freeze_untill1 == $client_freeze_untill2 && $reffered_by1 == $reffered_by2){
+                    $client_freeze_status1 == $client_freeze_status2 
+                    && $client_freeze_untill1 == $client_freeze_untill2 
+                    && $reffered_by1 == $reffered_by2 && 
+                    $min_amount_1 == $min_amount_2
+                    ){
                     // UPDATE THE WHOLE RECORD EXCEPT THE WALLET
                     $update_col = explode(",",$transtable_column);
                     $col_value = "";
                     for ($indexed=0; $indexed < count($update_col); $indexed++) { 
                         $col_ind = $update_col[$indexed];
-                        if ($col_ind == "wallet_amount" || $col_ind == "client_id" || $col_ind == "next_expiration_date" || $col_ind == "client_freeze_status" || $col_ind == "client_freeze_untill" || $col_ind == "reffered_by") {
+                        if ($col_ind == "wallet_amount" || $col_ind == "client_id" || $col_ind == "next_expiration_date" || $col_ind == "client_freeze_status" || $col_ind == "client_freeze_untill" || $col_ind == "reffered_by" || $col_ind == "min_amount") {
                             continue;
                         }
                         $col_value .= "`$update_col[$indexed]` = \"".mysqli_escape_string($conn,$row_locale[$col_ind])."\" ,";
@@ -194,7 +200,8 @@
                     $client_freeze_status = $row_remote['client_freeze_status'];
                     $client_freeze_untill = $row_remote['client_freeze_untill'];
                     $reffered_by = $row_remote['reffered_by'];
-                    $update = "UPDATE `client_tables` SET `wallet_amount` = '$wallet_remote' , `next_expiration_date` = '$next_expiration_date', `client_freeze_status` = '$client_freeze_status', `client_freeze_untill` = '$client_freeze_untill', `reffered_by` = '$reffered_by' WHERE `client_id` = '$client_id'";
+                    $min_amount = $row_remote['min_amount'];
+                    $update = "UPDATE `client_tables` SET `wallet_amount` = '$wallet_remote' , `next_expiration_date` = '$next_expiration_date', `client_freeze_status` = '$client_freeze_status', `client_freeze_untill` = '$client_freeze_untill', `reffered_by` = '$reffered_by', `min_amount` = \"$min_amount\" WHERE `client_id` = '$client_id'";
                     $stmt = $conn->prepare($update);
                     echo $update."<br>";
                     // echo "<br>remote exp date".$next_expiration_date." next exp date";
