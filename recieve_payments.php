@@ -8,9 +8,9 @@
 	// get connection to the database and get the values of the users that are due that minute
 	// Connect REMOTE
 	$dbname = 'my_isp';
-	$hostname = 'localhost';
-	$dbusername = 'root';
-	$dbpassword = '';
+	$hostname = '3.144.33.165';
+	$dbusername = 'jose';
+	$dbpassword = 'Francis=Son123';
 	if(!isset($_SESSION)) {
 		session_start(); 
 	}
@@ -23,8 +23,8 @@
     // LOCAL
 	$dbname = 'my_isp';
 	$hostname = 'localhost';
-	$dbusername = 'root';
-	$dbpassword = '';
+	$dbusername = 'hilla';
+	$dbpassword = 'Francis=Son123';
 	if(!isset($_SESSION)) {
 		session_start(); 
 	}
@@ -38,7 +38,7 @@
 	if ($conn && $conn2) {
 		// echo "Connected";
 		// get the clients who have their account expired
-		$select = "SELECT `client_id`,`client_name`,`router_name`,`client_status`,`client_account` ,`client_network`,`monthly_payment`,`wallet_amount`,`clients_contacts` FROM `client_tables` WHERE `next_expiration_date` < ? AND `payments_status` = '1'";
+		$select = "SELECT * FROM `client_tables` WHERE `next_expiration_date` < ? AND `payments_status` = '1'";
 		$stmt = $conn->prepare($select);
 		$today_date = date("YmdHis");
 		// echo $today_date;
@@ -57,6 +57,7 @@
 				$router_name = $row['router_name'];
 				$client_network = $row['client_network'];
 				$client_account = $row['client_account'];
+				$min_amount = $row['min_amount'];
 				// echo $row['client_id']." ".$row['client_name']." ".$row['router_name']." ".$row['client_network']."<br>";
 				
 				// check the wallet if it has less amount
@@ -119,76 +120,80 @@
 						$change++;
 					}
 				}else {
-					echo $wallet;
+					// echo $wallet;
 					// user cant pay for the next month
 					// the user is notified that their account is de-activated
 					// their account is de-activated and if their active status is deactivated (0)s
 					// don`t deactivated in the mikrotik router. this will be checked after 30 minutes 
 					// deactivate only (1)s
-
-					// check if the user wallet has some money more than Ksh 100
-					$minimum_pay = ceil($monthly_payment/4);
-					if ($wallet < $minimum_pay) {
-						if ($client_status == 1) {
-							// send them a message that they are deactivated
+					
+					$minimum_pay = ceil($monthly_payment * ($min_amount / 100));
+					
+					// the minimum pay should not be less than 0
+					if ($minimum_pay != 0) {
+						// $minimum_pay = ceil($monthly_payment/4);
+						if ($wallet < $minimum_pay) {
+							if ($client_status == 1) {
+								// send them a message that they are deactivated
+								$message_contents = get_sms($conn);
+								$message = $message_contents[2]->messages[2]->message;
+								if ($message) {
+									$trans_amount = 0;
+									$message = message_content($message,$client_id,$conn,$trans_amount);
+									// send the user an SMS
+									send_sms($conn,$client_contacts,$message,$client_id);
+								}
+								// $message = "Dear ".ucfirst(strtolower(explode(" ",$client_name)[0])).", Your Acc ".$client_account." has been deactivated.No enough funds in your wallet to make the payment.";
+								// de_activate($client_id);
+								$deactivate .= $client_id.",";
+								$change++;
+							}
+							echo $client_name." deactivated<br>";
+						}else {
+							// if the amount in the wallet is greater than 100
+							// get the percentage of the amount and know till when 
+							// will the amount take them for a 30 day period
+							$percentage = ($wallet/$monthly_payment) * 100;
+							$dayed = round(($percentage/100) * 30,1);
+							// check if it gives hours and days so that they days and hours are added
+	
+							// split to get days and hours
+							$days = explode(".",$dayed);
+							$time_period = "0 hours";
+							if (count($days) > 0) {
+								// means it has both days and hours
+								$day = $days[0];
+								$hours = round(($days[1]/10) * 24);
+								$time_period = $day." days ".$hours." hours";
+							}else {
+								$time_period = $days[0]." days";
+							}
+							$NextExpDate1 = date("dS M Y H:i:s",strtotime($time_period));
+							$NextExpDate = date("YmdHis",strtotime($time_period));
+							$wallet = 0;
+							$account_status = 1;
+							// the next date of expiry is already found
+							// update the user next date of expiration and the user active status and the new wallet amount
+							$update = "UPDATE `client_tables` SET `next_expiration_date` = ?, `wallet_amount` = ?, `client_status` = ? WHERE `client_id` = ?";
+							$stmt = $conn->prepare($update);
+							$stmt->bind_param("ssss",$NextExpDate,$wallet,$account_status,$client_id);
+							$stmt->execute();
+	
+							// send sms
 							$message_contents = get_sms($conn);
-							$message = $message_contents[2]->messages[2]->message;
+							$message = $message_contents[2]->messages[1]->message;
 							if ($message) {
 								$trans_amount = 0;
 								$message = message_content($message,$client_id,$conn,$trans_amount);
+								// echo $message;
 								// send the user an SMS
 								send_sms($conn,$client_contacts,$message,$client_id);
 							}
-							// $message = "Dear ".ucfirst(strtolower(explode(" ",$client_name)[0])).", Your Acc ".$client_account." has been deactivated.No enough funds in your wallet to make the payment.";
-							// de_activate($client_id);
-							$deactivate .= $client_id.",";
+							// activate the router
+							activateUser($client_id);
 							$change++;
+							echo "Less than the monthly payment";
 						}
-						echo $client_name." deactivated<br>";
-					}else {
-						// if the amount in the wallet is greater than 100
-						// get the percentage of the amount and know till when 
-						// will the amount take them for a 30 day period
-						$percentage = ($wallet/$monthly_payment) * 100;
-						$dayed = round(($percentage/100) * 30,1);
-						// check if it gives hours and days so that they days and hours are added
-
-						// split to get days and hours
-						$days = explode(".",$dayed);
-						$time_period = "0 hours";
-						if (count($days) > 0) {
-							// means it has both days and hours
-							$day = $days[0];
-							$hours = round(($days[1]/10) * 24);
-							$time_period = $day." days ".$hours." hours";
-						}else {
-							$time_period = $days[0]." days";
-						}
-						$NextExpDate1 = date("dS M Y H:i:s",strtotime($time_period));
-						$NextExpDate = date("YmdHis",strtotime($time_period));
-						$wallet = 0;
-						$account_status = 1;
-						// the next date of expiry is already found
-						// update the user next date of expiration and the user active status and the new wallet amount
-						$update = "UPDATE `client_tables` SET `next_expiration_date` = ?, `wallet_amount` = ?, `client_status` = ? WHERE `client_id` = ?";
-						$stmt = $conn->prepare($update);
-						$stmt->bind_param("ssss",$NextExpDate,$wallet,$account_status,$client_id);
-						$stmt->execute();
-
-						// send sms
-						$message_contents = get_sms($conn);
-						$message = $message_contents[2]->messages[1]->message;
-						if ($message) {
-							$trans_amount = 0;
-							$message = message_content($message,$client_id,$conn,$trans_amount);
-							// echo $message;
-							// send the user an SMS
-							send_sms($conn,$client_contacts,$message,$client_id);
-						}
-						// activate the router
-						activateUser($client_id);
-						$change++;
-						echo "Less than the monthly payment";
 					}
 				}
 			}
@@ -221,7 +226,7 @@
 
 		$curl_handle = curl_init();
 
-        $url = "http://localhost:8000/activate_user/".$client_id;
+        $url = "http://192.254.141.82:81/activate_user/".$client_id;
 		// header("Location: ".$url."", true, 301);
         // Set the curl URL option
         curl_setopt($curl_handle, CURLOPT_URL, $url);
@@ -239,7 +244,7 @@
 	function de_activate($client_id,$conn2){
 		$curl_handle = curl_init();
 
-        $url = "http://localhost:8000/deactivate_user/".$client_id;
+        $url = "http://192.254.141.82:81/deactivate_user/".$client_id;
 		// header("Location: ".$url."", true, 301);
 
         // Set the curl URL option
@@ -307,7 +312,7 @@
 	function getSMSKeys($conn){
 		// get the sms keys
 		$sms_api_keys = [];
-		$select = "SELECT `value` FROM `settings` WHERE `keyword` = 'sms_api_key';";
+		$select = "SELECT * FROM `settings` WHERE `keyword` = 'sms_api_key';";
 		$stmt = $conn->prepare($select);
 		$stmt->execute();
 		$result = $stmt->get_result();
@@ -317,7 +322,7 @@
 				array_push($sms_api_keys,$row['value']);
 			}
 		}
-		$select = "SELECT `value` FROM `settings` WHERE `keyword` = 'sms_partner_id';";
+		$select = "SELECT * FROM `settings` WHERE `keyword` = 'sms_partner_id';";
 		$stmt = $conn->prepare($select);
 		$stmt->execute();
 		$result = $stmt->get_result();
@@ -327,7 +332,7 @@
 				array_push($sms_api_keys,$row['value']);
 			}
 		}
-		$select = "SELECT `value` FROM `settings` WHERE `keyword` = 'sms_shortcode';";
+		$select = "SELECT * FROM `settings` WHERE `keyword` = 'sms_shortcode';";
 		$stmt = $conn->prepare($select);
 		$stmt->execute();
 		$result = $stmt->get_result();
@@ -344,7 +349,7 @@
         // Initiate curl session in a variable (resource)
         $curl_handle = curl_init();
 
-        $url = "http://localhost:81/crontab/syncclients.php";
+        $url = "http://192.254.141.82:81/crontab/syncclients.php";
 
         // Set the curl URL option
         curl_setopt($curl_handle, CURLOPT_URL, $url);
@@ -382,6 +387,7 @@
 		$wallet = "Null";
 		$username = "Null";
 		$password = "Null";
+		$min_amount = 0;
 		$trans_amount = isset($trans_amount)?$trans_amount:"Null";
 		// var date = new Date();
 		$select = "SELECT * FROM `client_tables` WHERE `client_id` = $user_id";
@@ -402,9 +408,15 @@
 				$wallet = $row['wallet_amount'];
 				$username = $row['client_username'];
 				$password = $row['client_password'];
+				$min_amount = $row['min_amount'];
 			}
 		}
-		$minimum_pay = $monthly_payment > 0 ? $monthly_payment/4 : "Null";
+
+		// minimum payment
+		$minimum_pay = $monthly_payment > 0 ? ceil($monthly_payment * ($min_amount / 100)) : "Null";
+
+
+		// $minimum_pay = $monthly_payment > 0 ? $monthly_payment/4 : "Null";
 		$today = date("dS-M-Y");
 		$now = date("H:i:s");
 		$time = $exp_date;
