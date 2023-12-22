@@ -6,8 +6,8 @@
 	// Connect REMOTE
 	$dbname = 'mikrotik_cloud';
 	$hostname = 'localhost';
-	$dbusername = 'root';
-	$dbpassword = '';
+	$dbusername = 'hilla';
+	$dbpassword = 'Francis=Son123';
 	if(!isset($_SESSION)) {
 		session_start(); 
 	}
@@ -67,7 +67,7 @@
 							// $message = "Dear ".ucfirst(strtolower(explode(" ",$client_name)[0])).", Your Acc ".$client_account." has been renewed. your wallet Bal:".$new_wallet." KSH.Check acc status on billing.hypbits.com/login. For enquires call 0717748569";
 							send_sms($conn,$client_contacts,$message,$client_id);
 						}
-						activate_user($conn,$row);
+						// activate_user($conn,$row);
 
 					}else {
 						$message_contents = get_sms($conn);
@@ -81,7 +81,7 @@
 							send_sms($conn,$client_contacts,$message,$client_id);
 						}
 						// activate the router
-						activate_user($conn,$row);
+						// activate_user($conn,$row);
 					}
                 }else {
 					
@@ -133,7 +133,7 @@
 							// update the user next date of expiration and the user active status and the new wallet amount
 							$update = "UPDATE `client_tables` SET `next_expiration_date` = ?, `wallet_amount` = ? WHERE `client_id` = ?";
 							$stmt = $conn->prepare($update);
-							$stmt->bind_param("ssss",$NextExpDate,$wallet_amount,$account_status,$client_id);
+							$stmt->bind_param("sss",$NextExpDate,$wallet_amount,$client_id);
 							$stmt->execute();
 	
 							// send sms
@@ -176,36 +176,38 @@
     function activate_user($conn,$client_data){
 		$curl_handle = curl_init();
 
-        $url = "http://localhost:8000/activate/".$client_data['client_id'];
-		// header("Location: ".$url."", true, 301);
-
-        // Set the curl URL option
-        curl_setopt($curl_handle, CURLOPT_URL, $url);
-
-        // This option will return data as a string instead of direct output
-        curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, true);
-
-        // Execute curl & store data in a variable
-        $curl_data = curl_exec($curl_handle);
-
-        curl_close($curl_handle);
+		$url = "https://cloud.hypbits.com/activate/".$client_data['client_id'];
+	
+		curl_setopt($curl_handle, CURLOPT_URL, $url);
+		curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, true);
+	
+		$curl_data = curl_exec($curl_handle);
+	
+		if(curl_errno($curl_handle)){
+			echo 'Curl error: ' . curl_error($curl_handle);
+		}
+	
+		curl_close($curl_handle);
+	
+		return $curl_data;
     }
     function deactivate_client($conn,$client_data){
 		$curl_handle = curl_init();
 
-        $url = "http://localhost:8000/deactivate/".$client_data['client_id'];
-		// header("Location: ".$url."", true, 301);
-
-        // Set the curl URL option
-        curl_setopt($curl_handle, CURLOPT_URL, $url);
-
-        // This option will return data as a string instead of direct output
-        curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, true);
-
-        // Execute curl & store data in a variable
-        $curl_data = curl_exec($curl_handle);
-
-        curl_close($curl_handle);
+		$url = "https://cloud.hypbits.com/deactivate/".$client_data['client_id'];
+	
+		curl_setopt($curl_handle, CURLOPT_URL, $url);
+		curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, true);
+	
+		$curl_data = curl_exec($curl_handle);
+	
+		if(curl_errno($curl_handle)){
+			echo 'Curl error: ' . curl_error($curl_handle);
+		}
+	
+		curl_close($curl_handle);
+	
+		return $curl_data;
     }
 
 	function get_sms($conn){

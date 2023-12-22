@@ -6,10 +6,10 @@
 	date_default_timezone_set('Africa/Nairobi');
 
 	// get connection to the database and get the values of the users that are due that minute
-	$dbname = 'my_isp';
+	$dbname = 'mikrotik_cloud';
 	$hostname = 'localhost';
-	$dbusername = 'root';
-	$dbpassword = '';
+	$dbusername = 'hilla';
+	$dbpassword = 'Francis=Son123';
 	if(!isset($_SESSION)) {
 		session_start(); 
 	}

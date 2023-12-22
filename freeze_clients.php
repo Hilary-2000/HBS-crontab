@@ -10,8 +10,8 @@
     // LOCALE
 	$dbname = 'mikrotik_cloud';
 	$hostname = 'localhost';
-	$dbusername = 'root';
-	$dbpassword = '';
+	$dbusername = 'hilla';
+	$dbpassword = 'Francis=Son123';
 	if(!isset($_SESSION)) {
 		session_start(); 
 	}
@@ -83,7 +83,7 @@
                     echo "<br>error occured during update!";
                 }
                 // NOW enable the user
-                activateUser($client_id);
+                activate_user($conn,$row);
             }
         }
         // then second freeze clients that are to be frozen
@@ -107,7 +107,7 @@
                 $stmt = $conn->prepare($update);
                 if($stmt->execute()){
                     echo "<br>Client deactivated";
-                    de_activate($client_id);
+                    deactivate_client($conn,$row);
                 }else {
                     echo "<br>error occured";
                 }
@@ -134,7 +134,7 @@
                 $stmt = $conn->prepare($update);
                 if($stmt->execute()){
                     echo "<br>Client activated";
-                    activateUser($client_id);
+                    activate_user($conn,$row);
                 }else {
                     echo "<br>error occured";
                 }
@@ -156,7 +156,7 @@
 				$stmt->execute();
 
 				// deactivate the user
-				de_activate($row['client_id']);
+				deactivate_client($conn,$row);
 
 				// SEND THE CLIENT A MESSAGE OF freezing
 				$message_contents = get_sms($conn);
@@ -263,44 +263,43 @@
 		$stmt->bind_param("ssssss",$message,$now,$phone_number,$message_status,$acc_id,$sms_type);
 		$stmt->execute();
 	}
+
+    function activate_user($conn,$client_data){
+		$curl_handle = curl_init();
+
+		$url = "https://cloud.hypbits.com/activate/".$client_data['client_id'];
 	
-	function activateUser($client_id){
-
+		curl_setopt($curl_handle, CURLOPT_URL, $url);
+		curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, true);
+	
+		$curl_data = curl_exec($curl_handle);
+	
+		if(curl_errno($curl_handle)){
+			echo 'Curl error: ' . curl_error($curl_handle);
+		}
+	
+		curl_close($curl_handle);
+	
+		return $curl_data;
+    }
+    function deactivate_client($conn,$client_data){
 		$curl_handle = curl_init();
 
-        $url = "http://192.168.88.241:8000/activate_user/".$client_id;
-		// header("Location: ".$url."", true, 301);
-        // Set the curl URL option
-        curl_setopt($curl_handle, CURLOPT_URL, $url);
-
-        // This option will return data as a string instead of direct output
-        curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, true);
-
-        // Execute curl & store data in a variable
-        $curl_data = curl_exec($curl_handle);
-
-        curl_close($curl_handle);
-		echo $curl_data;
-	}
-
-	function de_activate($client_id){
-		$curl_handle = curl_init();
-
-        $url = "http://192.168.88.241:8000/deactivate_user/".$client_id;
-		// header("Location: ".$url."", true, 301);
-
-        // Set the curl URL option
-        curl_setopt($curl_handle, CURLOPT_URL, $url);
-
-        // This option will return data as a string instead of direct output
-        curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, true);
-
-        // Execute curl & store data in a variable
-        $curl_data = curl_exec($curl_handle);
-
-        curl_close($curl_handle);
-		echo $curl_data;
-	}
+		$url = "https://cloud.hypbits.com/deactivate/".$client_data['client_id'];
+	
+		curl_setopt($curl_handle, CURLOPT_URL, $url);
+		curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, true);
+	
+		$curl_data = curl_exec($curl_handle);
+	
+		if(curl_errno($curl_handle)){
+			echo 'Curl error: ' . curl_error($curl_handle);
+		}
+	
+		curl_close($curl_handle);
+	
+		return $curl_data;
+    }
 
 	function get_sms($conn){
 		$select = "SELECT * FROM `settings` WHERE `keyword` = 'Messages';";
