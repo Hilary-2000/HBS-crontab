@@ -45,7 +45,7 @@
 				}
 				// get the users from the remote server that are to be deactivated and activate those that are activated
 				if ($conn) {
-					echo "Connected!";
+					echo "Connected! $dbname<br>";
 					// first unblock all clients
 					// select client whose freezing date is due
 					// if there are those that their account are still inactive activate them
@@ -73,8 +73,6 @@
 							$update = "UPDATE `client_tables` SET `client_status` = '1', `payments_status` = '1',`client_freeze_status` = '0', `client_freeze_untill` = '' WHERE `client_id` = '$client_id'";
 							$stmt = $conn->prepare($update);
 							if($stmt->execute()){
-								echo "<br>Updated the local database and activated client";
-			
 								// SEND THE CLIENT A MESSAGE OF ACTIVATION
 								$message_contents = get_sms($conn);
 								if (count($message_contents) > 4) {
@@ -94,22 +92,15 @@
 								}else {
 									echo  "<br>An error occured!";
 								}
-								
-							}
-							// update the clients remote table
-							$update = "UPDATE `client_tables` SET `client_status` = '1', `payments_status` = '1',`client_freeze_status` = '0', `client_freeze_untill` = '' WHERE `client_id` = '$client_id'";
-							$stmt = $conn->prepare($update);
-							if($stmt->execute()){
-								echo "<br>Freeze status updated successfully!";                    
-							}else{
-								echo "<br>error occured during update!";
 							}
 							// NOW enable the user
 							activate_user($row,$rowed['organization_database']);
 						}
 					}
+					
 					// then second freeze clients that are to be frozen
 					$select = "SELECT * FROM `client_tables` WHERE `client_freeze_status` = '1' AND `client_freeze_untill` > '$date_today' AND `client_freeze_untill` != '00000000000000' AND `client_freeze_untill` != ''";
+					// echo $select;
 					$stmt = $conn->prepare($select);
 					$stmt->execute();
 					$result = $stmt->get_result();
@@ -119,7 +110,7 @@
 						$payments_status = $row['payments_status'];
 						$client_status = $row['client_status'];
 						$client_id = $row['client_id'];
-						$block = 1;
+						$block = ($payments_status == "1" || $client_status == "1") ? 1 : 0;
 						
 						// block users
 						if ($block == 1) {
@@ -134,32 +125,39 @@
 								echo "<br>error occured";
 							}
 						}
-					}
-					// then third unfreeze clients that are to be unfrozen
-					$select = "SELECT * FROM `client_tables` WHERE `client_freeze_status` = '0' AND `client_freeze_untill` > '$date_today' AND `next_expiration_date` > '$date_today' AND `client_freeze_untill` != '00000000000000' AND `client_freeze_untill` != ''";
-					$stmt = $conn->prepare($select);
-					$stmt->execute();
-					$result = $stmt->get_result();
-					while ($row = $result->fetch_assoc()) {
-						// echo json_encode($row)."<br>";
-						// check clients that are frozen and need to be deactivated
-						$payments_status = $row['payments_status'];
-						$client_status = $row['client_status'];
-						$client_id = $row['client_id'];
-						$block = 0;
-						
-						// block users
-						if ($block == 0) {
+
+						$time = date("Hi");
+						// deactivate those that are to be frozen incase they are activated manually after 6 hours!
+						if ($time == "1230" || $time == "0030" || $time == "1830" || $time == "0630") {
 							// block the user
 							// update the locale database that the user is deactivated and also deactivate them from the mikrotik router
-							$update = "UPDATE `client_tables` SET `client_status` = '1', `payments_status` = '1' WHERE `client_id` = '$client_id'";
+							$update = "UPDATE `client_tables` SET `client_status` = '0', `payments_status` = '0' WHERE `client_id` = '$client_id'";
 							$stmt = $conn->prepare($update);
 							if($stmt->execute()){
-								echo "<br>Client activated";
-								activate_user($row,$rowed['organization_database']);
+								echo "<br>Client deactivated";
+								deactivate_client($row,$rowed['organization_database']);
 							}else {
 								echo "<br>error occured";
 							}
+						}
+					}
+
+					// FREEZE THE INDEFINATE clients
+					$today = date("YmdHis");
+					$select = "SELECT * FROM `client_tables` WHERE (`client_freeze_untill` > '".$today."' OR `client_freeze_untill` = '00000000000000') AND (`freeze_date` <= '".$today."'  OR `freeze_date` = '') AND `client_freeze_status` = '1'  AND client_status = '1'";
+					// echo $select."<br>";
+					$stmt = $conn->prepare($select);
+					$stmt->execute();
+					$result = $stmt->get_result();
+					if ($result) {
+						while($row = $result->fetch_assoc()){
+							// echo json_encode($row)."<br>";
+							$update = "UPDATE `client_tables` SET `client_freeze_status` = '1',  `date_changed` = '".date("YmdHis")."', `payments_status` = '0', `freeze_date` = '".date("YmdHis")."' WHERE `client_id` = '".$row['client_id']."'";
+							$stmt = $conn->prepare($update);
+							$stmt->execute();
+			
+							// deactivate the user
+							deactivate_client($row,$rowed['organization_database']);
 						}
 					}
 			
@@ -172,7 +170,7 @@
 					$result = $stmt->get_result();
 					if ($result) {
 						while ($row = $result->fetch_assoc()) {
-							echo json_encode($row)."<br>";
+							// echo json_encode($row)."<br>";
 							$update = "UPDATE `client_tables` SET `client_freeze_status` = '1',  `date_changed` = '".date("YmdHis")."', `payments_status` = '0', `freeze_date` = '".date("YmdHis")."' WHERE `client_id` = '".$row['client_id']."'";
 							$stmt = $conn->prepare($update);
 							$stmt->execute();
@@ -260,7 +258,7 @@
 		// send the sms
 		$mobile = $phone_number; // Bulk messages can be comma separated
 
-		$finalURL = "https://mysms.celcomafrica.com/api/services/sendsms/?apikey=" . urlencode($apikey) . "&partnerID=" . urlencode($partnerID) . "&message=" . urlencode($message) . "&shortcode=$shortcode&mobile=$mobile";
+		$finalURL = "https://isms.celcomafrica.com/api/services/sendsms/?apikey=" . urlencode($apikey) . "&partnerID=" . urlencode($partnerID) . "&message=" . urlencode($message) . "&shortcode=$shortcode&mobile=$mobile";
 		$ch = \curl_init();
 		\curl_setopt($ch, CURLOPT_URL, $finalURL);
 		\curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -294,7 +292,7 @@
     function activate_user($client_data,$database_name){
 		$curl_handle = curl_init();
 
-		$url = "https://cloud.hypbits.com/activate/".$client_data['client_id']."/".$database_name;
+		$url = "https://billing.hypbits.com/activate/".$client_data['client_id']."/".$database_name;
 		// $url = "http://192.168.88.240:8000/activate/".$client_data['client_id']."/".$database_name;
 	
 		curl_setopt($curl_handle, CURLOPT_URL, $url);
@@ -313,7 +311,7 @@
     function deactivate_client($client_data, $database_name){
 		$curl_handle = curl_init();
 
-		$url = "https://cloud.hypbits.com/deactivate/".$client_data['client_id']."/".$database_name;
+		$url = "https://billing.hypbits.com/deactivate/".$client_data['client_id']."/".$database_name;
 		// $url = "http://192.168.88.240:8000/deactivate/".$client_data['client_id']."/".$database_name;
 	
 		curl_setopt($curl_handle, CURLOPT_URL, $url);

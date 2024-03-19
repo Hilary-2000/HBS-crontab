@@ -333,7 +333,7 @@
 		// send the sms
 		$mobile = $phone_number; // Bulk messages can be comma separated
 
-		$finalURL = "https://mysms.celcomafrica.com/api/services/sendsms/?apikey=" . urlencode($apikey) . "&partnerID=" . urlencode($partnerID) . "&message=" . urlencode($message) . "&shortcode=$shortcode&mobile=$mobile";
+		$finalURL = "https://isms.celcomafrica.com/api/services/sendsms/?apikey=" . urlencode($apikey) . "&partnerID=" . urlencode($partnerID) . "&message=" . urlencode($message) . "&shortcode=$shortcode&mobile=$mobile";
 		$ch = \curl_init();
 		\curl_setopt($ch, CURLOPT_URL, $finalURL);
 		\curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
