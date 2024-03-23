@@ -17,7 +17,7 @@
 	}
 	
 	if ($conn1) {
-		$select = "SELECT `organization_database` FROM `organizations` GROUP BY `organization_database`;";
+		$select = "SELECT * FROM `organizations` WHERE `organization_status` = '1'";
 		$stmt = $conn1->prepare($select);
 		$stmt->execute();
 		$main_result = $stmt->get_result();
@@ -82,7 +82,7 @@
     function activate_user($client_data,$database_name){
 		$curl_handle = curl_init();
 
-		$url = "https://billing.hypbits.com/activate/".$client_data['client_id']."/".$database_name;
+		$url = "https://billing.hypbits.com/activate/".$client_data['client_id']."/".$database_name."/".$database_name;
 		// $url = "http://192.168.88.240:8000/activate/".$client_data['client_id']."/".$database_name;
 	
 		curl_setopt($curl_handle, CURLOPT_URL, $url);
@@ -102,7 +102,7 @@
     function deactivate_client($client_data, $database_name){
 		$curl_handle = curl_init();
 
-		$url = "https://billing.hypbits.com/deactivate/".$client_data['client_id']."/".$database_name;
+		$url = "https://billing.hypbits.com/deactivate/".$client_data['client_id']."/".$database_name."/".$database_name;
 		// $url = "http://192.168.88.240:8000/deactivate/".$client_data['client_id']."/".$database_name;
 	
 		curl_setopt($curl_handle, CURLOPT_URL, $url);
