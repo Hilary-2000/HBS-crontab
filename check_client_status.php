@@ -5,10 +5,10 @@
 	// loop through every organization database to activate and deactivate clients
 	$dbname = "mikrotik_cloud_manager";
 	$hostname = "localhost";
-	$dbusername = 'hilla';
-	$dbpassword = "Francis=Son123";
-	// $dbusername = 'root';
-	// $dbpassword = "";
+	// $dbusername = 'hilla';
+	// $dbpassword = "Francis=Son123";
+	$dbusername = 'root';
+	$dbpassword = "";
 	$conn1 = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
 	// Check connection
 	if (mysqli_connect_errno()) {
@@ -31,10 +31,10 @@
 				// Connect REMOTE
 				$dbname = $database_name;
 				$hostname = 'localhost';
-				$dbusername = 'hilla';
-				$dbpassword = "Francis=Son123";
-				// $dbusername = 'root';
-				// $dbpassword = "";
+				// $dbusername = 'hilla';
+				// $dbpassword = "Francis=Son123";
+				$dbusername = 'root';
+				$dbpassword = "";
 				if(!isset($_SESSION)) {
 					session_start(); 
 				}
@@ -48,8 +48,9 @@
 				if ($conn) {
 					// echo "We are connected!<br>";
 
-                    // deactivate client if status is deactivated
-                    $select = "SELECT * FROM `client_tables` WHERE `client_status` = '0'";
+                    // deactivate client if they have been deactivated in the last 24 hours
+					$date = date("YmdHis",strtotime("-1 day"));
+                    $select = "SELECT * FROM `client_tables` WHERE `next_expiration_date` > '".$date."'";
                     $stmt = $conn->prepare($select);
                     $stmt->execute();
                     $result = $stmt->get_result();
@@ -57,21 +58,21 @@
                         while ($row = $result->fetch_assoc()) {
                             echo $row['client_name']." deactivate<br>";
                             // function to deactivate client
-                            deactivate_client($row,$rowed['organization_database']);
+                            // deactivate_client($row,$rowed['organization_database']);
                         }
                     }
 
                     // activate clients if status is active
-                    $select = "SELECT * FROM `client_tables` WHERE `client_status` = '1'";
-                    $stmt = $conn->prepare($select);
-                    $stmt->execute();
-                    $result = $stmt->get_result();
-                    if ($result) {
-                        while ($row = $result->fetch_assoc()) {
-                            echo $row['client_name']." activate<br>";
-                            activate_user($row, $rowed['organization_database']);
-                        }
-                    }
+                    // $select = "SELECT * FROM `client_tables` WHERE `client_status` = '1'";
+                    // $stmt = $conn->prepare($select);
+                    // $stmt->execute();
+                    // $result = $stmt->get_result();
+                    // if ($result) {
+                    //     while ($row = $result->fetch_assoc()) {
+                    //         echo $row['client_name']." activate<br>";
+                    //         // activate_user($row, $rowed['organization_database']);
+                    //     }
+                    // }
 				}
 			}
 		}
