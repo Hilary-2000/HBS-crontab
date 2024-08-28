@@ -50,7 +50,8 @@
 
                     // deactivate client if they have been deactivated in the last 24 hours
 					$date = date("YmdHis",strtotime("-1 day"));
-                    $select = "SELECT * FROM `client_tables` WHERE `next_expiration_date` > '".$date."'";
+					$today = date("YmdHis");
+                    $select = "SELECT * FROM `client_tables` WHERE `next_expiration_date` BETWEEN '".$date."' AND '".$today."'";
                     $stmt = $conn->prepare($select);
                     $stmt->execute();
                     $result = $stmt->get_result();
@@ -61,18 +62,6 @@
                             // deactivate_client($row,$rowed['organization_database']);
                         }
                     }
-
-                    // activate clients if status is active
-                    // $select = "SELECT * FROM `client_tables` WHERE `client_status` = '1'";
-                    // $stmt = $conn->prepare($select);
-                    // $stmt->execute();
-                    // $result = $stmt->get_result();
-                    // if ($result) {
-                    //     while ($row = $result->fetch_assoc()) {
-                    //         echo $row['client_name']." activate<br>";
-                    //         // activate_user($row, $rowed['organization_database']);
-                    //     }
-                    // }
 				}
 			}
 		}

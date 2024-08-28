@@ -329,27 +329,45 @@
 		$apikey = $sms_api_keys[0];
 		$partnerID = $sms_api_keys[1];
 		$shortcode = $sms_api_keys[2];
+		$sms_sender = $sms_api_keys[3];
 
 		// send the sms
 		$mobile = $phone_number; // Bulk messages can be comma separated
 
-		$finalURL = "https://isms.celcomafrica.com/api/services/sendsms/?apikey=" . urlencode($apikey) . "&partnerID=" . urlencode($partnerID) . "&message=" . urlencode($message) . "&shortcode=$shortcode&mobile=$mobile";
-		$ch = \curl_init();
-		\curl_setopt($ch, CURLOPT_URL, $finalURL);
-		\curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		\curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-		$response = \curl_exec($ch);
-		\curl_close($ch);
-		$res = json_decode($response);
-		// return $res;
-		// echo json_encode($mobile)." pen <br>";
-		$message_status = 0;
-		$values = $res->responses[0];
-		foreach ($values as  $key => $value) {
-			// echo $key;
-			if ($key == "response-code") {
-				if ($value == "200") {
-					// if its 200 the message is sent delete the
+		if($sms_sender == "celcom"){
+			$finalURL = "https://isms.celcomafrica.com/api/services/sendsms/?apikey=" . urlencode($apikey) . "&partnerID=" . urlencode($partnerID) . "&message=" . urlencode($message) . "&shortcode=$shortcode&mobile=$mobile";
+			$ch = \curl_init();
+			\curl_setopt($ch, CURLOPT_URL, $finalURL);
+			\curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+			\curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+			$response = \curl_exec($ch);
+			\curl_close($ch);
+			$res = json_decode($response);
+			// return $res;
+			// echo json_encode($mobile)." pen <br>";
+			$message_status = 0;
+			$values = $res->responses[0];
+			foreach ($values as  $key => $value) {
+				// echo $key;
+				if ($key == "response-code") {
+					if ($value == "200") {
+						// if its 200 the message is sent delete the
+						$message_status = 1;
+					}
+				}
+			}
+		}elseif($sms_sender == "afrokatt"){
+			$finalURL = "https://account.afrokatt.com/sms/api?action=send-sms&api_key=".urlencode($apikey)."&to=".$mobile."&from=".$shortcode."&sms=".urlencode($message)."&unicode=1";
+			$ch = \curl_init();
+			\curl_setopt($ch, CURLOPT_URL, $finalURL);
+			\curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+			\curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+			$response = \curl_exec($ch);
+			\curl_close($ch);
+			$res = json_decode($response);
+			$values = $res->code;
+			if (isset($res->code)) {
+				if($res->code == "200"){
 					$message_status = 1;
 				}
 			}
@@ -388,6 +406,16 @@
 			}
 		}
 		$select = "SELECT * FROM `settings` WHERE `keyword` = 'sms_shortcode';";
+		$stmt = $conn->prepare($select);
+		$stmt->execute();
+		$result = $stmt->get_result();
+		if ($result) {
+			if ($row = $result->fetch_assoc()) {
+				// get the api key
+				array_push($sms_api_keys,$row['value']);
+			}
+		}
+		$select = "SELECT * FROM `settings` WHERE `keyword` = 'sms_sender';";
 		$stmt = $conn->prepare($select);
 		$stmt->execute();
 		$result = $stmt->get_result();
