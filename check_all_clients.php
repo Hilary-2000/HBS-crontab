@@ -5,7 +5,7 @@
 	// loop through every organization database to activate and deactivate clients
 	$dbname = "mikrotik_cloud_manager";
 	$hostname = "localhost";
-	$dbusername = 'hilla';
+	$dbusername = 'hillary';
 	$dbpassword = "Francis=Son123";
 	// $dbusername = 'root';
 	// $dbpassword = "";
@@ -30,7 +30,7 @@
 				// Connect REMOTE
 				$dbname = $database_name;
 				$hostname = 'localhost';
-				$dbusername = 'hilla';
+				$dbusername = 'hillary';
 				$dbpassword = "Francis=Son123";
 				// $dbusername = 'root';
 				// $dbpassword = "";

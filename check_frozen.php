@@ -42,7 +42,7 @@
         // if there are those that their account are still inactive activate them
         $date_today = date("YmdHis");
         // echo $date_today;
-        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_untill` < '$date_today' AND `client_freeze_status` = '0' AND `client_freeze_untill` != '00000000000000' AND `client_freeze_untill` != ''";
+        $select = "SELECT * FROM `client_tables` WHERE `client_freeze_untill` < '$date_today' AND `client_freeze_status` = '1' AND `client_freeze_untill` != '00000000000000' AND `client_freeze_untill` != ''";
         $stmt = $conn2->prepare($select);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -61,7 +61,7 @@
                 echo "Unblocked <br>";
                 // unblock the user then locally update the clients payments status and account status
                 // while remotely change the freezing status
-                $update = "UPDATE `client_tables` SET `client_status` = '1', `payments_status` = '1',`client_freeze_status` = '0', `client_freeze_untill` = '' WHERE `client_id` = '$client_id'";
+                $update = "UPDATE `client_tables` SET `client_status` = '0', `payments_status` = '1',`client_freeze_status` = '0', `client_freeze_untill` = '' WHERE `client_id` = '$client_id'";
                 $stmt = $conn->prepare($update);
                 if($stmt->execute()){
                     echo "<br>Updated the local database and activated client";

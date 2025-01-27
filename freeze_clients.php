@@ -9,7 +9,7 @@
 	// loop through every organization database to activate and deactivate clients
 	$dbname = "mikrotik_cloud_manager";
 	$hostname = "localhost";
-	$dbusername = 'hilla';
+	$dbusername = 'hillary';
 	$dbpassword = "Francis=Son123";
 	// $dbusername = 'root';
 	// $dbpassword = "";
@@ -32,7 +32,7 @@
 				// LOCALE
 				$dbname = $rowed['organization_database'];
 				$hostname = 'localhost';
-				$dbusername = 'hilla';
+				$dbusername = 'hillary';
 				$dbpassword = 'Francis=Son123';
 				if(!isset($_SESSION)) {
 					session_start(); 
@@ -51,7 +51,7 @@
 					// if there are those that their account are still inactive activate them
 					$date_today = date("YmdHis");
 					// echo $date_today;
-					$select = "SELECT * FROM `client_tables` WHERE `client_freeze_untill` < '$date_today' AND `client_freeze_status` = '0' AND `client_freeze_untill` != '00000000000000' AND `client_freeze_untill` != ''";
+					$select = "SELECT * FROM `client_tables` WHERE `client_freeze_untill` < '$date_today' AND `client_freeze_status` = '1' AND `client_freeze_untill` != '00000000000000' AND `client_freeze_untill` != ''";
 					$stmt = $conn->prepare($select);
 					$stmt->execute();
 					$result = $stmt->get_result();
