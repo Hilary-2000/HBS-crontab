@@ -49,9 +49,9 @@
 					// echo "We are connected!<br>";
 
                     // deactivate client if they have been deactivated in the last 24 hours
-					$date = date("YmdHis",strtotime("-1 day"));
+					$yesterday = date("YmdHis",strtotime("-1 day"));
 					$today = date("YmdHis");
-                    $select = "SELECT * FROM `client_tables` WHERE `next_expiration_date` BETWEEN '".$date."' AND '".$today."'";
+                    $select = "SELECT * FROM `client_tables` WHERE `payments_status` = '1' AND `deleted` = '0' AND `next_expiration_date` BETWEEN '".$yesterday."' AND '".$today."'";
                     $stmt = $conn->prepare($select);
                     $stmt->execute();
                     $result = $stmt->get_result();
