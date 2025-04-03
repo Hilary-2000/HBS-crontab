@@ -2,10 +2,25 @@
 	// mikrotik disable all active users who`s dates are due
 	date_default_timezone_set('Africa/Nairobi');
 
+	// allow only certain ip addresses
+	$allowed_ip_address = "172.71.178.94";
+	$server_ip_address = $_SERVER['REMOTE_ADDR'] ?? 'UNKNOWN';
+	if (php_sapi_name() === 'cli') {
+		// Running from CLI (Terminal)
+		$server_ip_address = '172.71.178.94'; // Assume local execution
+	} else {
+		// Running from Web
+		$server_ip_address = $_SERVER['REMOTE_ADDR'] ?? 'UNKNOWN';
+	}
+	if ($allowed_ip_address !== $server_ip_address) {
+		echo "Server ip address not allowed \"".$server_ip_address."\"";
+		return 0;
+	}
+
 	// loop through every organization database to activate and deactivate clients
 	$dbname = "mikrotik_cloud_manager";
 	$hostname = "localhost";
-	$dbusername = 'hilla';
+	$dbusername = 'hillary';
 	$dbpassword = "Francis=Son123";
 	// $dbusername = 'root';
 	// $dbpassword = "";
@@ -31,13 +46,9 @@
 				// Connect REMOTE
 				$dbname = $database_name;
 				$hostname = 'localhost';
-				$dbusername = 'hilla';
+				$dbusername = 'hillary';
 				$dbpassword = "Francis=Son123";
-				// $dbusername = 'root';
-				// $dbpassword = "";
-				if(!isset($_SESSION)) {
-					session_start(); 
-				}
+				
 				$conn = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
 				// Check connection
 				if (mysqli_connect_errno()) {
