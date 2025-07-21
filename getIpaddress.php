@@ -8,16 +8,18 @@
 	if (!isset($_GET['db_name'])) {
 		echo "Invalid access";
 		return "Invalid access";
+		exit();
 	}
 
 	// get connection to the database and get the values of the users that are due that minute
 	$dbname = $_GET['db_name'];
 	$hostname = 'localhost';
-	$dbusername = 'root';
+	$dbusername = 'hillary';
 	$dbpassword = 'Francis=Son123';
 	if(!isset($_SESSION)) {
 		session_start(); 
 	}
+	
 	$conn = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
 	// Check connection
 	if (mysqli_connect_errno()) {
