@@ -18,20 +18,8 @@ $batch_of_client = 50; //number of clients to charge
 $free_clients = 0; // number of clients to charge free
 
 
-// DB CREDENTIALS
-$dbname = 'mikrotik_cloud_manager';
-$hostname = 'localhost';
-$dbusername = 'root';
-$dbpassword = '';
-if(!isset($_SESSION)) {
-    session_start(); 
-}
-$conn = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
-// Check connection
-if (mysqli_connect_errno()) {
-    die("Failed to connect to MySQL: " . mysqli_connect_error());
-    exit();
-}
+// connect database
+include "../db_connect.php";
 
 // PROCEED AND GET THE ORGANIZATIONS TO ACTIVATE AND DEACTIVATED
 

@@ -33,6 +33,9 @@ if (mysqli_connect_errno()) {
     exit();
 }
 
+// connect database
+include "../db_connect.php";
+
 // PROCEED AND GET THE ORGANIZATIONS TO ACTIVATE AND DEACTIVATED
 
 $sql = "SELECT * FROM organizations";
