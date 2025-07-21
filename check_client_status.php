@@ -18,6 +18,20 @@
 		die("Failed to connect to MySQL: " . mysqli_connect_error());
 		exit();
 	}
+
+	// loop through every organization database to activate and deactivate clients
+	$dbname = "mikrotik_cloud_manager";
+	$hostname = "localhost";
+	$dbusername = 'hillary';
+	$dbpassword = "Francis=Son123";
+	// $dbusername = 'root';
+	// $dbpassword = "";
+	$conn1 = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
+	// Check connection
+	if (mysqli_connect_errno()) {
+		die("Failed to connect to MySQL: " . mysqli_connect_error());
+		exit();
+	}
 	
 	if ($conn1) {
 		$select = "SELECT * FROM `organizations` WHERE `organization_status` = '1'";
@@ -36,7 +50,11 @@
 				$hostname = 'localhost';
 				$dbusername = 'hillary';
 				$dbpassword = "Francis=Son123";
-				
+				// $dbusername = 'root';
+				// $dbpassword = "";
+				if(!isset($_SESSION)) {
+					session_start(); 
+				}
 				$conn = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
 				// Check connection
 				if (mysqli_connect_errno()) {
@@ -58,7 +76,7 @@
                         while ($row = $result->fetch_assoc()) {
                             echo $row['client_name']." deactivate<br>";
                             // function to deactivate client
-                            // deactivate_client($row,$rowed['organization_database']);
+                            deactivate_client($row,$rowed['organization_database']);
                         }
                     }
 				}

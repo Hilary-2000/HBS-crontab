@@ -36,7 +36,9 @@
 				$hostname = 'localhost';
 				$dbusername = 'hillary';
 				$dbpassword = "Francis=Son123";
-				
+				// $dbusername = 'root';
+				// $dbpassword = "";
+
 				$conn = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
 				// Check connection
 				if (mysqli_connect_errno()) {

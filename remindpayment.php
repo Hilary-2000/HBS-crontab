@@ -34,7 +34,9 @@
 				$hostname = 'localhost';
 				$dbusername = 'hillary';
 				$dbpassword = 'Francis=Son123';
-				
+				if(!isset($_SESSION)) {
+					session_start(); 
+				}
 				$conn = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
 				// Check connection
 				if (mysqli_connect_errno()) {
