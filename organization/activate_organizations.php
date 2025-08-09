@@ -312,6 +312,35 @@ function send_sms($conn,$phone_number,$message,$acc_id){
                 $message_status = 1;
             }
         }
+    }elseif ($sms_sender == "hostpinnacle") {
+        // API URL
+        $url = "https://smsportal.hostpinnacle.co.ke/SMSApi/send";
+        
+        // Prepare POST fields
+        $postData = [
+            "userid"     => $apikey,
+            "password"     => $partnerID,
+            "senderid"   => urlencode($shortcode),
+            "msg"        => urlencode($message),
+            "mobile"   => formatKenyanPhone($mobile),
+            "sendMethod" => "quick",
+            "msgType"    => "text",  // or 'unicode' if sending special characters
+            "output"     => "json"   // Response format: json, xml, plain
+        ];
+        // return $postData;
+        
+        // Initialize cURL
+        $ch = \curl_init();
+        \curl_setopt_array($ch, [
+            CURLOPT_URL            => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $postData,
+            CURLOPT_SSL_VERIFYPEER => false
+        ]);
+        $response = \curl_exec($ch);
+        \curl_close($ch);
+        $message_status = 1;
     }
 
     // save the message details in the database

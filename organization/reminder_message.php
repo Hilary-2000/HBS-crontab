@@ -23,6 +23,7 @@ include "../db_connect.php";
 
 // PROCEED AND GET THE ORGANIZATIONS TO ACTIVATE AND DEACTIVATED
 
+$conn = $conn1;
 $sql = "SELECT * FROM organizations";
 $stmt = $conn->prepare($sql);
 $stmt->execute();
@@ -37,8 +38,8 @@ if ($result) {
               $message = message_content($message,$row->organization_id,$conn);
               
               // send_sms
-            //   send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
-            echo $message;
+              send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
+            // echo $message;
         }
 
 
@@ -50,8 +51,8 @@ if ($result) {
               $message = message_content($message,$row->organization_id,$conn);
               
               // send_sms
-            //   send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
-            echo $message;
+              send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
+            // echo $message;
         }
 
         // send reminder to those their expiration date is yesterday.
@@ -62,8 +63,8 @@ if ($result) {
               $message = message_content($message,$row->organization_id,$conn);
               
               // send_sms
-            //   send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
-            echo $message;
+              send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
+            // echo $message;
         }
     }
 }
@@ -240,6 +241,35 @@ function send_sms($conn,$phone_number,$message,$acc_id){
                 $message_status = 1;
             }
         }
+    }elseif ($sms_sender == "hostpinnacle") {
+        // API URL
+        $url = "https://smsportal.hostpinnacle.co.ke/SMSApi/send";
+        
+        // Prepare POST fields
+        $postData = [
+            "userid"     => $apikey,
+            "password"     => $partnerID,
+            "senderid"   => urlencode($shortcode),
+            "msg"        => urlencode($message),
+            "mobile"   => formatKenyanPhone($mobile),
+            "sendMethod" => "quick",
+            "msgType"    => "text",  // or 'unicode' if sending special characters
+            "output"     => "json"   // Response format: json, xml, plain
+        ];
+        // return $postData;
+        
+        // Initialize cURL
+        $ch = \curl_init();
+        \curl_setopt_array($ch, [
+            CURLOPT_URL            => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $postData,
+            CURLOPT_SSL_VERIFYPEER => false
+        ]);
+        $response = \curl_exec($ch);
+        \curl_close($ch);
+        $message_status = 1;
     }
 
     // save the message details in the database
@@ -249,6 +279,28 @@ function send_sms($conn,$phone_number,$message,$acc_id){
     $sms_type = 2;
     $stmt->bind_param("ssssss",$message,$now,$phone_number,$message_status,$acc_id,$sms_type);
     $stmt->execute();
+}
+function formatKenyanPhone($number) {
+    // Remove spaces, dashes, and plus sign
+    $number = preg_replace('/[\s\-\+]/', '', $number);
+
+    // If it starts with "07", replace with "2547"
+    if (preg_match('/^07\d{8}$/', $number)) {
+        return '254' . substr($number, 1);
+    }
+
+    // If it starts with "+2547" (after plus removal)
+    if (preg_match('/^2547\d{8}$/', $number)) {
+        return $number;
+    }
+
+    // If it starts with "7" only, add "254"
+    if (preg_match('/^7\d{8}$/', $number)) {
+        return '254' . $number;
+    }
+
+    // Invalid number
+    return false;
 }
 
 function getSMSKeys($conn){
