@@ -13,12 +13,12 @@
 
 	// get connection to the database and get the values of the users that are due that minute
 	$dbname = $_GET['db_name'];
-	$hostname = 'localhost';
-	$dbusername = 'hillary';
-	$dbpassword = 'Francis=Son123';
+    include "db_credential.php";
 	if(!isset($_SESSION)) {
 		session_start(); 
 	}
+	// echo $dbname;
+	// exit();
 	
 	$conn = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
 	// Check connection

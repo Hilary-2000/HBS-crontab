@@ -15,9 +15,7 @@
 
     // // DB CREDENTIALS
     $dbname = 'mikrotik_cloud_manager';
-    $hostname = 'localhost';
-    $dbusername = 'root';
-    $dbpassword = '';
+    include "db_credential.php";
     if(!isset($_SESSION)) {
         session_start(); 
     }

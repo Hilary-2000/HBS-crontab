@@ -15,17 +15,19 @@ $months_last_active = "-3 months";
 
 $batch_of_client = 50; //number of clients to charge
 
+$per_head_cost = 20; // cost per head
+
 $free_clients = 0; // number of clients to charge free
 
 
 // DB CREDENTIALS
 $dbname = 'mikrotik_cloud_manager';
-$hostname = 'localhost';
-$dbusername = 'root';
-$dbpassword = '';
+include "../db_credential.php";
 if(!isset($_SESSION)) {
     session_start(); 
 }
+
+
 $conn = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
 // Check connection
 if (mysqli_connect_errno()) {
@@ -33,11 +35,7 @@ if (mysqli_connect_errno()) {
     exit();
 }
 
-// connect database
-include "../db_connect.php";
-
 // PROCEED AND GET THE ORGANIZATIONS TO ACTIVATE AND DEACTIVATED
-
 $sql = "SELECT * FROM organizations";
 $stmt = $conn->prepare($sql);
 $stmt->execute();
@@ -62,7 +60,7 @@ if ($result) {
             }
 
             // check the number of clients they have active in the last three months
-            $sql = "SELECT COUNT(*) AS 'total' FROM client_tables WHERE next_expiration_date > ?";
+            $sql = "SELECT COUNT(*) AS 'total' FROM client_tables WHERE next_expiration_date >= ?";
             $stmt = $conn2->prepare($sql);
             $last_active_month = date("Ymd", strtotime($months_last_active))."235959";
             $stmt->bind_param("s", $last_active_month);
@@ -76,10 +74,7 @@ if ($result) {
             }
 
             if ($total_clients > $free_clients) {
-                $batches = round($total_clients/$batch_of_client, 0);
-                $batches += $total_clients%$batch_of_client > 0 ? 1 : 0;
-                
-                $total_cost = $batches * $monthly_payment;
+                $total_cost = $total_clients > 100 ? $total_clients * $per_head_cost : 1000;
 
                 if($wallet >= $total_cost){
                     // extend the client
