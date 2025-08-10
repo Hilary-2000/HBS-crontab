@@ -15,7 +15,7 @@
 	include "shared_functions.php";
 
 	if ($conn1) {
-		$select = "SELECT `organization_database` FROM `organizations` GROUP BY `organization_database`;";
+		$select = "SELECT * FROM `organizations` GROUP BY `organization_database`;";
 		$stmt = $conn1->prepare($select);
 		$stmt->execute();
 		$result_1 = $stmt->get_result();
@@ -78,7 +78,7 @@
 										$trans_amount = 0;
 										$message = message_content($send_message,$client_id,$conn,$trans_amount);
 										echo $message."<br>";
-										send_sms($conn,$client_phone,$message,$client_id);
+										send_sms($conn,$client_phone,$message,$client_id,$rowed['send_sms']);
 									}
 								}else {
 									echo  "<br>An error occured!";
@@ -189,7 +189,7 @@
 									$freeze_dates = $row['client_freeze_untill'] == "00000000000000" ? "" : $row['client_freeze_untill'];
 									$message = message_content($send_message,$row['client_id'],$conn,$trans_amount,$day_frozen,$row['freeze_date'],$freeze_dates);
 									// echo "<br>".$message.json_encode($row);
-									send_sms($conn,$row['clients_contacts'],$message,$row['client_id']);
+									send_sms($conn,$row['clients_contacts'],$message,$row['client_id'],$rowed['send_sms']);
 								}
 							}else {
 								echo  "<br>An error occured!";

@@ -12,7 +12,7 @@
 	include "shared_functions.php";
 	
 	if ($conn1) {
-		$select = "SELECT `organization_database` FROM `organizations` GROUP BY `organization_database`;";
+		$select = "SELECT * FROM `organizations`";
 		$stmt = $conn1->prepare($select);
 		$stmt->execute();
 		$main_result = $stmt->get_result();
@@ -82,7 +82,7 @@
 										echo $message."<br>";
 										// activate the user in the router
 										// $message = "Dear ".ucfirst(strtolower(explode(" ",$client_name)[0])).", Your Acc ".$client_account." has been renewed. your wallet Bal:".$new_wallet." KSH.Check acc status on billing.hypbits.com/login. For enquires call 0717748569";
-										send_sms($conn,$client_contacts,$message,$client_id);
+										send_sms($conn,$client_contacts,$message,$client_id,$rowed['send_sms']);
 									}
 									// activate_user($row,$rowed['organization_database']);
 			
@@ -95,7 +95,7 @@
 										echo $message."<br>";
 										// send the user an SMS
 										// $message = "Dear ".ucfirst(strtolower(explode(" ",$client_name)[0])).", Your Acc ".$client_account." has been extended for the next 30 days. Your wallet Bal:".$new_wallet." KSH.Check acc status on billing.hypbits.com/login. For enquires call 0717748569";
-										send_sms($conn,$client_contacts,$message,$client_id);
+										send_sms($conn,$client_contacts,$message,$client_id,$rowed['send_sms']);
 									}
 									// activate the router
 									// activate_user($row,$rowed['organization_database']);
@@ -117,7 +117,7 @@
 												$message = message_content($message,$client_id,$conn,$trans_amount);
 												// send the user an SMS
 												echo $message."<br>";
-												send_sms($conn,$client_contacts,$message,$client_id);
+												send_sms($conn,$client_contacts,$message,$client_id,$rowed['send_sms']);
 											}
 			
 											// function to deactivate client
@@ -161,7 +161,7 @@
 											$message = message_content($message,$client_id,$conn,$trans_amount);
 											echo $message."<br>";
 											// send the user an SMS
-											send_sms($conn,$client_contacts,$message,$client_id);
+											send_sms($conn,$client_contacts,$message,$client_id,$rowed['send_sms']);
 										}
 										// activate the router
 										activate_user($row,$rowed['organization_database']);

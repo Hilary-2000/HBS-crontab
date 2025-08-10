@@ -14,7 +14,7 @@
 	include "shared_functions.php";
 
 	if ($conn1) {
-		$select = "SELECT `organization_database` FROM `organizations` GROUP BY `organization_database`;";
+		$select = "SELECT * FROM `organizations` GROUP BY `organization_database`;";
 		$stmt = $conn1->prepare($select);
 		$stmt->execute();
 		$result_1 = $stmt->get_result();
@@ -55,7 +55,7 @@
 							if ($message) {
 								$trans_amount = 0;
 								$message = message_content($message,$row['client_id'],$conn,$trans_amount);
-								send_sms($conn,$row['clients_contacts'],$message,$row['client_id']);
+								send_sms($conn,$row['clients_contacts'],$message,$row['client_id'],$rowed['send_sms']);
 							}
 						}
 					}
@@ -72,7 +72,7 @@
 							if ($message) {
 								$trans_amount = 0;
 								$message = message_content($message,$row['client_id'],$conn,$trans_amount);
-								send_sms($conn,$row['clients_contacts'],$message,$row['client_id']);
+								send_sms($conn,$row['clients_contacts'],$message,$row['client_id'],$rowed['send_sms']);
 							}
 						}
 					}
@@ -89,7 +89,7 @@
 							if ($message) {
 								$trans_amount = 0;
 								$message = message_content($message,$row['client_id'],$conn,$trans_amount);
-								send_sms($conn,$row['clients_contacts'],$message,$row['client_id']);
+								send_sms($conn,$row['clients_contacts'],$message,$row['client_id'],$rowed['send_sms']);
 							}
 						}
 					}

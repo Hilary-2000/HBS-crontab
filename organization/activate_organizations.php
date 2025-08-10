@@ -260,7 +260,7 @@ function addMonths($date,$months){
     date_add($date,date_interval_create_from_date_string($months." Month"));
     return date_format($date,"YmdHis");
 }
-function send_sms($conn,$phone_number,$message,$acc_id){
+function send_sms($conn,$phone_number,$message,$acc_id, $send_sms = 1){
     if ($message == "" || $message == null || is_array($message)) {
         // do not send.
         return;
@@ -274,73 +274,75 @@ function send_sms($conn,$phone_number,$message,$acc_id){
 
     // send the sms
     $mobile = $phone_number; // Bulk messages can be comma separated
-
-    if($sms_sender == "celcom"){
-        $finalURL = "https://isms.celcomafrica.com/api/services/sendsms/?apikey=" . urlencode($apikey) . "&partnerID=" . urlencode($partnerID) . "&message=" . urlencode($message) . "&shortcode=$shortcode&mobile=$mobile";
-        $ch = \curl_init();
-        \curl_setopt($ch, CURLOPT_URL, $finalURL);
-        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        $response = \curl_exec($ch);
-        \curl_close($ch);
-        $res = json_decode($response);
-        // return $res;
-        // echo json_encode($mobile)." pen <br>";
-        $message_status = 0;
-        $values = $res->responses[0];
-        foreach ($values as  $key => $value) {
-            // echo $key;
-            if ($key == "response-code") {
-                if ($value == "200") {
-                    // if its 200 the message is sent delete the
+    $message_status = 0;
+    if($send_sms == 1){
+        if($sms_sender == "celcom"){
+            $finalURL = "https://isms.celcomafrica.com/api/services/sendsms/?apikey=" . urlencode($apikey) . "&partnerID=" . urlencode($partnerID) . "&message=" . urlencode($message) . "&shortcode=$shortcode&mobile=$mobile";
+            $ch = \curl_init();
+            \curl_setopt($ch, CURLOPT_URL, $finalURL);
+            \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            $response = \curl_exec($ch);
+            \curl_close($ch);
+            $res = json_decode($response);
+            // return $res;
+            // echo json_encode($mobile)." pen <br>";
+            $message_status = 0;
+            $values = $res->responses[0];
+            foreach ($values as  $key => $value) {
+                // echo $key;
+                if ($key == "response-code") {
+                    if ($value == "200") {
+                        // if its 200 the message is sent delete the
+                        $message_status = 1;
+                    }
+                }
+            }
+        }elseif($sms_sender == "afrokatt"){
+            $finalURL = "https://account.afrokatt.com/sms/api?action=send-sms&api_key=".urlencode($apikey)."&to=".$mobile."&from=".$shortcode."&sms=".urlencode($message);
+            $ch = \curl_init();
+            \curl_setopt($ch, CURLOPT_URL, $finalURL);
+            \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            $response = \curl_exec($ch);
+            \curl_close($ch);
+            $res = json_decode($response);
+            $values = $res->code;
+            if (isset($res->code)) {
+                if($res->code == "200"){
                     $message_status = 1;
                 }
             }
+        }elseif ($sms_sender == "hostpinnacle") {
+            // API URL
+            $url = "https://smsportal.hostpinnacle.co.ke/SMSApi/send";
+            
+            // Prepare POST fields
+            $postData = [
+                "userid"     => $apikey,
+                "password"     => $partnerID,
+                "senderid"   => urlencode($shortcode),
+                "msg"        => urlencode($message),
+                "mobile"   => formatKenyanPhone($mobile),
+                "sendMethod" => "quick",
+                "msgType"    => "text",  // or 'unicode' if sending special characters
+                "output"     => "json"   // Response format: json, xml, plain
+            ];
+            // return $postData;
+            
+            // Initialize cURL
+            $ch = \curl_init();
+            \curl_setopt_array($ch, [
+                CURLOPT_URL            => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => $postData,
+                CURLOPT_SSL_VERIFYPEER => false
+            ]);
+            $response = \curl_exec($ch);
+            \curl_close($ch);
+            $message_status = 1;
         }
-    }elseif($sms_sender == "afrokatt"){
-        $finalURL = "https://account.afrokatt.com/sms/api?action=send-sms&api_key=".urlencode($apikey)."&to=".$mobile."&from=".$shortcode."&sms=".urlencode($message);
-        $ch = \curl_init();
-        \curl_setopt($ch, CURLOPT_URL, $finalURL);
-        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        $response = \curl_exec($ch);
-        \curl_close($ch);
-        $res = json_decode($response);
-        $values = $res->code;
-        if (isset($res->code)) {
-            if($res->code == "200"){
-                $message_status = 1;
-            }
-        }
-    }elseif ($sms_sender == "hostpinnacle") {
-        // API URL
-        $url = "https://smsportal.hostpinnacle.co.ke/SMSApi/send";
-        
-        // Prepare POST fields
-        $postData = [
-            "userid"     => $apikey,
-            "password"     => $partnerID,
-            "senderid"   => urlencode($shortcode),
-            "msg"        => urlencode($message),
-            "mobile"   => formatKenyanPhone($mobile),
-            "sendMethod" => "quick",
-            "msgType"    => "text",  // or 'unicode' if sending special characters
-            "output"     => "json"   // Response format: json, xml, plain
-        ];
-        // return $postData;
-        
-        // Initialize cURL
-        $ch = \curl_init();
-        \curl_setopt_array($ch, [
-            CURLOPT_URL            => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => $postData,
-            CURLOPT_SSL_VERIFYPEER => false
-        ]);
-        $response = \curl_exec($ch);
-        \curl_close($ch);
-        $message_status = 1;
     }
 
     // save the message details in the database

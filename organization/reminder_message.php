@@ -271,6 +271,7 @@ function send_sms($conn,$phone_number,$message,$acc_id){
         \curl_close($ch);
         $message_status = 1;
     }
+    $message_status = 1;
 
     // save the message details in the database
     $insert = "INSERT INTO `sms_tables` (`sms_content`,`date_sent`,`recipient_phone`,`sms_status`,`account_id`,`sms_type`) VALUES (?,?,?,?,?,?)";
