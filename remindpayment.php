@@ -34,14 +34,14 @@
 			
 				// check if the connection is valid
 				if ($conn) {
-					// echo "Connected";
 					// date tommorow
 					$tommorow = date("Ymd",strtotime("1 day"));
+
 					// date today
 					$today = date("Ymd");
+
 					// date one day after
 					$yesterday = date("Ymd",strtotime("-1 day"));
-					// echo $yesterday." ".$today." ".$tommorow;
 			
 					// get the users that are to pay yesterday
 					$select = "SELECT `client_id`,`client_name`,`router_name`,`client_status`,`client_network`,`monthly_payment`,`client_account`,`wallet_amount`,`clients_contacts` FROM `client_tables` WHERE `next_expiration_date` LIKE '$yesterday%' AND `payments_status` = '1';";

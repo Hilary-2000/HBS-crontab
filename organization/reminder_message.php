@@ -199,7 +199,7 @@ function send_sms($conn,$phone_number,$message,$acc_id){
     $apikey = $sms_api_keys[0];
     $partnerID = $sms_api_keys[1];
     $shortcode = $sms_api_keys[2];
-    $sms_sender = $sms_api_keys[3];
+    $sms_sender = "celcom";
 
     // send the sms
     $mobile = $phone_number; // Bulk messages can be comma separated
