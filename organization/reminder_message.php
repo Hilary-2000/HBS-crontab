@@ -6,7 +6,7 @@
  * WHEN THEY MAKE PAYMENTS.
  */
 
-include "../allowed_ip.php";
+include __DIR__."/../allowed_ip.php";
 
 date_default_timezone_set('Africa/Nairobi');
 
@@ -19,7 +19,7 @@ $free_clients = 0; // number of clients to charge free
 
 
 // connect database
-include "../db_connect.php";
+include __DIR__."/../db_connect.php";
 
 // PROCEED AND GET THE ORGANIZATIONS TO ACTIVATE AND DEACTIVATED
 

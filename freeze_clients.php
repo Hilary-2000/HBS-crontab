@@ -15,7 +15,7 @@
 	include "shared_functions.php";
 
 	if ($conn1) {
-		$select = "SELECT * FROM `organizations` GROUP BY `organization_database`;";
+		$select = "SELECT * FROM `organizations` WHERE `organization_status` = '1';";
 		$stmt = $conn1->prepare($select);
 		$stmt->execute();
 		$result_1 = $stmt->get_result();

@@ -23,7 +23,7 @@ use PHPMailer\PHPMailer\PHPMailer;
     $email = ["gathure@gmail.com", "hilaryme45@gmail.com"];
 
     // phone_number
-    $phone_number = "0720268519, 0743551250";
+    $phone_number = "0720268519,0743551250";
 
     if ($conn1){
         $select = "SELECT * FROM `organizations`";
@@ -197,6 +197,9 @@ use PHPMailer\PHPMailer\PHPMailer;
         }
         echo $email_data."<br><hr>".$sms_data;
         if ($email_data && $sms_data) {
+            // proceed and also send sms
+            send_sms($conn1,$phone_number,$sms_data,"0");
+
             echo "sending!<br>";
             require(__DIR__.'/../phpmailer/src/Exception.php');
             require(__DIR__.'/../phpmailer/src/PHPMailer.php');
@@ -205,11 +208,11 @@ use PHPMailer\PHPMailer\PHPMailer;
             $mail->isSMTP();
             $mail->Host = "smtp.gmail.com";
             $mail->SMTPAuth = true;
-            $mail->Username = "hypbits@gmail.com";
-            $mail->Password = "urcijdmtatjftroc";
+            $email_username = "hilaryme8@gmail.com";
+            $mail->Username = $email_username;
+            $mail->Password = "lqzgdosbgovhezjw";
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; 
             $mail->Port = 587;
-            $email_username = "hypbits@gmail.com";
             $sender_name = "Hypbits Monitoring System";
             
             $mail->setFrom($email_username,$sender_name);
@@ -235,9 +238,6 @@ use PHPMailer\PHPMailer\PHPMailer;
             }catch(Exception $e){
                 echo "Email could not be sent to $e.";
             }
-
-            // proceed and also send sms
-            send_sms($conn1,$phone_number,$sms_data,"0");
         }
     }
 

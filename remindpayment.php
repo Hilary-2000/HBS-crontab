@@ -14,7 +14,7 @@
 	include "shared_functions.php";
 
 	if ($conn1) {
-		$select = "SELECT * FROM `organizations` GROUP BY `organization_database`;";
+		$select = "SELECT * FROM `organizations` WHERE `organization_status` = '1';";
 		$stmt = $conn1->prepare($select);
 		$stmt->execute();
 		$result_1 = $stmt->get_result();
@@ -50,6 +50,14 @@
 					$result = $stmt->get_result();
 					if ($result) {
 						while ($row = $result->fetch_assoc()) {
+							// SKIP THOSE THAT HAVE WALLET AMOUNT THAT CAN PAY THEIR MONTHLY BILL
+							$wallet_amount = $row['wallet_amount'];
+							$monthly_payment = $row['monthly_payment'];
+							if ($wallet_amount >= $monthly_payment) {
+								continue;
+							}
+
+							// SEND MESSAGE
 							$message_contents = get_sms($conn);
 							$message = $message_contents[0]->messages[2]->message;
 							if ($message) {
@@ -67,6 +75,14 @@
 					$result = $stmt->get_result();
 					if ($result) {
 						while ($row = $result->fetch_assoc()) {
+							// SKIP THOSE THAT HAVE WALLET AMOUNT THAT CAN PAY THEIR MONTHLY BILL
+							$wallet_amount = $row['wallet_amount'];
+							$monthly_payment = $row['monthly_payment'];
+							if ($wallet_amount >= $monthly_payment) {
+								continue;
+							}
+
+							// SEND MESSAGE
 							$message_contents = get_sms($conn);
 							$message = $message_contents[0]->messages[1]->message;
 							if ($message) {
@@ -84,6 +100,14 @@
 					$result = $stmt->get_result();
 					if ($result) {
 						while ($row = $result->fetch_assoc()) {
+							// SKIP THOSE THAT HAVE WALLET AMOUNT THAT CAN PAY THEIR MONTHLY BILL
+							$wallet_amount = $row['wallet_amount'];
+							$monthly_payment = $row['monthly_payment'];
+							if ($wallet_amount >= $monthly_payment) {
+								continue;
+							}
+
+							// SEND MESSAGE
 							$message_contents = get_sms($conn);
 							$message = $message_contents[0]->messages[0]->message;
 							if ($message) {

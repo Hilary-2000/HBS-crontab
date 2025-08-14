@@ -6,7 +6,7 @@
  * WHEN THEY MAKE PAYMENTS.
  */
 
-include "../allowed_ip.php";
+include __DIR__."/../allowed_ip.php";
 
 date_default_timezone_set('Africa/Nairobi');
 
@@ -22,7 +22,7 @@ $free_clients = 0; // number of clients to charge free
 
 // DB CREDENTIALS
 $dbname = 'mikrotik_cloud_manager';
-include "../db_credential.php";
+include __DIR__."/../db_credential.php";
 if(!isset($_SESSION)) {
     session_start(); 
 }

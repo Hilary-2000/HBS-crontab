@@ -12,7 +12,7 @@
 	include "shared_functions.php";
 	
 	if ($conn1) {
-		$select = "SELECT * FROM `organizations`";
+		$select = "SELECT * FROM `organizations` WHERE `organization_status` = '1'";
 		$stmt = $conn1->prepare($select);
 		$stmt->execute();
 		$main_result = $stmt->get_result();
@@ -84,7 +84,6 @@
 										// $message = "Dear ".ucfirst(strtolower(explode(" ",$client_name)[0])).", Your Acc ".$client_account." has been renewed. your wallet Bal:".$new_wallet." KSH.Check acc status on billing.hypbits.com/login. For enquires call 0717748569";
 										send_sms($conn,$client_contacts,$message,$client_id,$rowed['send_sms']);
 									}
-									// activate_user($row,$rowed['organization_database']);
 			
 								}else {
 									$message_contents = get_sms($conn);
@@ -97,8 +96,6 @@
 										// $message = "Dear ".ucfirst(strtolower(explode(" ",$client_name)[0])).", Your Acc ".$client_account." has been extended for the next 30 days. Your wallet Bal:".$new_wallet." KSH.Check acc status on billing.hypbits.com/login. For enquires call 0717748569";
 										send_sms($conn,$client_contacts,$message,$client_id,$rowed['send_sms']);
 									}
-									// activate the router
-									// activate_user($row,$rowed['organization_database']);
 								}
 							}else {
 								
