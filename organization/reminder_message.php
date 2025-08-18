@@ -281,28 +281,6 @@ function send_sms($conn,$phone_number,$message,$acc_id){
     $stmt->bind_param("ssssss",$message,$now,$phone_number,$message_status,$acc_id,$sms_type);
     $stmt->execute();
 }
-function formatKenyanPhone($number) {
-    // Remove spaces, dashes, and plus sign
-    $number = preg_replace('/[\s\-\+]/', '', $number);
-
-    // If it starts with "07", replace with "2547"
-    if (preg_match('/^07\d{8}$/', $number)) {
-        return '254' . substr($number, 1);
-    }
-
-    // If it starts with "+2547" (after plus removal)
-    if (preg_match('/^2547\d{8}$/', $number)) {
-        return $number;
-    }
-
-    // If it starts with "7" only, add "254"
-    if (preg_match('/^7\d{8}$/', $number)) {
-        return '254' . $number;
-    }
-
-    // Invalid number
-    return false;
-}
 
 function getSMSKeys($conn){
     // get the sms keys
