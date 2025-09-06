@@ -2,8 +2,8 @@
     function activate_user($client_data,$database_name){
 		$curl_handle = curl_init();
 
-		// $url = "https://billing.hypbits.com/activate/".$client_data['client_id']."/".$database_name;
-		$url = "http://192.168.86.16:8000/activate/".$client_data['client_id']."/".$database_name;
+		$url = "https://billing.hypbits.com/activate/".$client_data['client_id']."/".$database_name;
+		// $url = "http://192.168.86.16:8000/activate/".$client_data['client_id']."/".$database_name;
 	
 		curl_setopt($curl_handle, CURLOPT_URL, $url);
 		curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, true);
@@ -23,8 +23,8 @@
     function deactivate_client($client_data, $database_name){
 		$curl_handle = curl_init();
 
-		// $url = "https://billing.hypbits.com/deactivate/".$client_data['client_id']."/".$database_name;
-		$url = "http://192.168.86.16:8000/deactivate/".$client_data['client_id']."/".$database_name;
+		$url = "https://billing.hypbits.com/deactivate/".$client_data['client_id']."/".$database_name;
+		// $url = "http://192.168.86.16:8000/deactivate/".$client_data['client_id']."/".$database_name;
 	
 		curl_setopt($curl_handle, CURLOPT_URL, $url);
 		curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, true);
