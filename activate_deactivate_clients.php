@@ -98,7 +98,6 @@
 									}
 								}
 							}else {
-								
 								$minimum_pay = ceil($monthly_payment * ($min_amount / 100));
 								
 								// the minimum pay should not be less than 0

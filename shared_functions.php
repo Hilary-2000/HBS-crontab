@@ -2,8 +2,8 @@
     function activate_user($client_data,$database_name){
 		$curl_handle = curl_init();
 
-		$url = "https://billing.hypbits.com/activate/".$client_data['client_id']."/".$database_name;
-		// $url = "http://192.168.88.240:8000/activate/".$client_data['client_id']."/".$database_name;
+		// $url = "https://billing.hypbits.com/activate/".$client_data['client_id']."/".$database_name;
+		$url = "http://192.168.86.16:8000/activate/".$client_data['client_id']."/".$database_name;
 	
 		curl_setopt($curl_handle, CURLOPT_URL, $url);
 		curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, true);
@@ -17,13 +17,14 @@
 		curl_close($curl_handle);
 	
 		// return $curl_data;
+		// echo "Activated ".$client_data['client_name']."<br>";
     }
 
     function deactivate_client($client_data, $database_name){
 		$curl_handle = curl_init();
 
-		$url = "https://billing.hypbits.com/deactivate/".$client_data['client_id']."/".$database_name;
-		// $url = "http://192.168.88.240:8000/deactivate/".$client_data['client_id']."/".$database_name;
+		// $url = "https://billing.hypbits.com/deactivate/".$client_data['client_id']."/".$database_name;
+		$url = "http://192.168.86.16:8000/deactivate/".$client_data['client_id']."/".$database_name;
 	
 		curl_setopt($curl_handle, CURLOPT_URL, $url);
 		curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, true);
@@ -37,6 +38,7 @@
 		curl_close($curl_handle);
 	
 		// return $curl_data;
+		// echo "Deactivated ".$client_data['client_name']."<br>";
     }
 
 	function get_sms($conn){
@@ -199,6 +201,51 @@
 				$response = \curl_exec($ch);
 				\curl_close($ch);
 				$message_status = 1;
+			}elseif ($sms_sender == "talksasa") {
+				$url = "https://bulksms.talksasa.com/api/v3/sms/send";
+				$phone = explode(",",$mobile);
+				$phone = array_map(function($num) {
+					return formatKenyanPhone($num);
+				}, $phone);
+				$phone = implode(",", $phone);
+
+				$payload = [
+					"recipient" => $phone,
+					"sender_id" => $shortcode,
+					"message" => $message,
+					"type" => "plain", // or 'unicode' if sending special characters
+				];
+
+				$ch = curl_init($url);
+				curl_setopt_array($ch, [
+					CURLOPT_RETURNTRANSFER => true,
+					CURLOPT_FAILONERROR => false,
+					CURLOPT_HTTPHEADER => [
+						"Authorization: Bearer " . $apikey,
+						"Accept: application/json",
+						"Content-Type: application/json",
+					],
+					CURLOPT_POST => true,
+					CURLOPT_POSTFIELDS => json_encode($payload),
+				]);
+
+				$response = curl_exec($ch);
+				$error = curl_error($ch);
+				$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+				curl_close($ch);
+				$message_status = 1;
+
+				// if ($response === false) {
+				// 	return ["success" => false, "response" => "cURL error: {$error}"];
+				// }
+
+				// $decoded = json_decode($response, true);
+
+				// return [
+				// 	"success"  => $httpCode >= 200 && $httpCode < 300,
+				// 	"status"   => $httpCode,
+				// 	"response" => $decoded ?: $response,
+				// ];
 			}
 		}
 
