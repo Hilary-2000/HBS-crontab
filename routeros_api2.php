@@ -24,7 +24,7 @@ class routeros_api2
     var $connected = false;  // Connection state
     var $delay = 3;          // Delay between connection attempts in seconds
     var $port = 8728;        // Port to connect to
-    var $timeout = 5;        // Connection attempt timeout and data read timeout
+    var $timeout = 60;       // Connection attempt timeout and data read timeout
     var $socket;             // Variable for storing socket resource
     var $ssl;
     
@@ -264,7 +264,8 @@ class routeros_api2
      * @param boolean     $parse      Parse the data? default: true
      *
      * @return array                  Array with parsed or unparsed data
-     */function read($parse = true)
+     */
+    function read($parse = true)
     {
         $RESPONSE = array();
         $start_time = time();

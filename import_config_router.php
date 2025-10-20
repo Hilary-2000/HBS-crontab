@@ -22,6 +22,11 @@
 				// database name
 				$database_name = $rowed['organization_database'];
 				echo $database_name."<br>";
+                if (
+                    $database_name != "mikrotik_cloud" && 
+                    $database_name != "HBS106") {
+                    continue;
+                }
 				
 				// get connection to the database and get the values of the users that are due that minute
 				// Connect REMOTE
@@ -46,6 +51,7 @@
                     $result = $statement->get_result();
                     if ($result) {
                         while ($row_router = $result->fetch_assoc()) {
+                            echo $row_router['router_name']." -- ";
                             // connect to the router and import the config
                             $sstp_username = $row_router['sstp_username'];
                             $sstp_password = $row_router['sstp_password'];
@@ -70,7 +76,7 @@
                                     $API_2 = new routeros_api2();
                                     $API_2->debug = false;
                                     if ($API_2->connect($client_router_ip,$sstp_username,$sstp_password,$api_port)){
-                                        $file_url = "http://192.168.86.16:8000/scripts/import_config.rsc";
+                                        $file_url = "https://test_billing.hypbits.com/scripts/import_config.rsc";
                                         // Step 1: Delete old scripts if it exists
                                         $scripts = $API_2->comm("/system/script/print", [
                                             ".proplist" => ".id,name"
@@ -102,7 +108,7 @@
                                         // Use the RouterOS fetch command to download the file
                                         $interfaces = $API_2->comm("/tool/fetch", array(
                                             "url" => $file_url,
-                                            "mode" => "http",
+                                            "mode" => "https",
                                             "dst-path" => "import_config.rsc",
                                             "keep-result" => "yes"
                                         ));
@@ -125,11 +131,11 @@
                                 }
                             }
                             echo json_encode($interfaces)."<br>";
-                            break;
+                            // break;
                         }
                     }
 				}
-                break;
+                // break;
 			}
 		}
 	}else{
