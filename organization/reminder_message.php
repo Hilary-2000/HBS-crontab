@@ -15,6 +15,8 @@ $months_last_active = "-3 months";
 
 $batch_of_client = 50; //number of clients to charge
 
+$per_head_cost = 20; // cost per head
+
 $free_clients = 0; // number of clients to charge free
 
 
@@ -34,12 +36,20 @@ if ($result) {
         $tommorow_start = (date("Ymd", strtotime("1 day"))."000000")*1;
         $tommorow_end = (date("Ymd", strtotime("1 day"))."235959")*1;
         if ($row->expiry_date >= $tommorow_start && $row->expiry_date <= $tommorow_end) {
-              $message = get_sms($conn, "Remind_payment", "day_before");
-              $message = message_content($message,$row->organization_id,$conn);
-              
-              // send_sms
-              send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
-            // echo $message;
+            // get monthly payments
+            $total_cost = getMonthlyPayment($row, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost);
+
+            // deduct wallet amount
+            $total_cost -= $row->wallet*1;
+
+            // retrieve the message
+            $message = get_sms($conn, "Remind_payment", "day_before");
+            $message = message_content($message,$row->organization_id,$conn, 0, $total_cost);
+            
+            // send_sms
+            if(isset($message)){
+                send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
+            }
         }
 
 
@@ -47,11 +57,19 @@ if ($result) {
         $today_start = date("Ymd")."000000"*1;
         $today_end = date("Ymd")."235959"*1;
         if ($row->expiry_date >= $today_start && $row->expiry_date <= $today_end) {
-              $message = get_sms($conn, "Remind_payment", "de_day");
-              $message = message_content($message,$row->organization_id,$conn);
-              
-              // send_sms
-              send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
+            // get monthly payments
+            $total_cost = getMonthlyPayment($row, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost);
+
+            // deduct wallet amount
+            $total_cost -= $row->wallet*1;
+        
+            $message = get_sms($conn, "Remind_payment", "de_day");
+            $message = message_content($message,$row->organization_id,$conn, 0, $total_cost);
+            
+            // send_sms
+            if(isset($message)){
+                send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
+            }
             // echo $message;
         }
 
@@ -59,16 +77,93 @@ if ($result) {
         $day_after_start = (date("Ymd", strtotime("-1 day"))."000000")*1;
         $day_after_end = (date("Ymd", strtotime("-1 day"))."235959")*1;
         if ($row->expiry_date >= $day_after_start && $row->expiry_date <= $day_after_end) {
-              $message = get_sms($conn, "Remind_payment", "day_after");
-              $message = message_content($message,$row->organization_id,$conn);
-              
-              // send_sms
-              send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
+            // get monthly payments
+            $total_cost = getMonthlyPayment($row, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost);
+            
+            // deduct wallet amount
+            $total_cost -= $row->wallet*1;
+            
+            $message = get_sms($conn, "Remind_payment", "day_after");
+            $message = message_content($message,$row->organization_id,$conn, 0, $total_cost);
+            
+            // send_sms
+            if(isset($message)){
+                send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
+            }
             // echo $message;
         }
     }
 }
 
+function getMonthlyPayment($organization_data, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost){
+        // GET THAT MONTHLY PAYMENT AMOUNT
+        $dbname = $organization_data->organization_database;
+        $conn2 = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
+        if (mysqli_connect_errno()) {
+            return 0;
+        }
+
+        // check the number of clients they have active in the last three months
+        $sql = "SELECT COUNT(*) AS 'total' FROM client_tables WHERE next_expiration_date >= ? AND clients_reg_date <= ?";
+        $stmt = $conn2->prepare($sql);
+        $last_active_month = date("Ymd", strtotime($months_last_active))."235959";
+        $five_days_before_expiry = modifyDate($organization_data->expiry_date,-5);
+        $stmt->bind_param("ss", $last_active_month, $five_days_before_expiry);
+        $stmt->execute();
+        $result_2 = $stmt->get_result();
+        $total_clients = 0;
+        if ($result_2) {
+            if ($rowed = $result_2->fetch_assoc()) {
+                $total_clients = $rowed['total']*1;
+            }
+        }
+        
+        $total_cost = 0;
+        if ($total_clients > $free_clients) {
+            $total_cost = $total_clients > 100 ? $total_clients * $per_head_cost : 1000;
+            $total_cost = $total_clients * $per_head_cost;
+        }
+        return $total_cost;
+}
+
+function modifyDate($date, $period, $unit = 'days', $format = "YmdHis") {
+    // Normalize the unit
+    $unit = strtolower(trim($unit));
+
+    // Determine if we are adding or subtracting
+    $sign = ($period >= 0) ? '+' : '';
+
+    // Build the interval string
+    switch ($unit) {
+        case 'day':
+        case 'days':
+            $intervalSpec = "{$sign}{$period} days";
+            break;
+        case 'week':
+        case 'weeks':
+            $intervalSpec = "{$sign}{$period} weeks";
+            break;
+        case 'month':
+        case 'months':
+            $intervalSpec = "{$sign}{$period} months";
+            break;
+        case 'year':
+        case 'years':
+            $intervalSpec = "{$sign}{$period} years";
+            break;
+        default:
+            $intervalSpec = "{$sign}{$period} days";
+    }
+
+    // Create the DateTime object
+    $dateTime = new DateTime($date);
+
+    // Modify the date
+    $dateTime->modify($intervalSpec);
+
+    // Return the new date in Y-m-d format
+    return $dateTime->format($format);
+}
 
 function message_content($data,$organization_id, $conn, $trans_amount = 0, $this_month_payment = 0) {
     $organization_data = [];
