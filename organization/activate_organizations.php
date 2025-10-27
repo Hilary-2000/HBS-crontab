@@ -60,10 +60,11 @@ if ($result) {
             }
 
             // check the number of clients they have active in the last three months
-            $sql = "SELECT COUNT(*) AS 'total' FROM client_tables WHERE next_expiration_date >= ?";
+            $sql = "SELECT COUNT(*) AS 'total' FROM client_tables WHERE next_expiration_date >= ? AND clients_reg_date <= ?";
             $stmt = $conn2->prepare($sql);
             $last_active_month = date("Ymd", strtotime($months_last_active))."235959";
-            $stmt->bind_param("s", $last_active_month);
+            $five_days_before_expiry = modifyDate($row->expiry_date,-5);
+            $stmt->bind_param("ss", $last_active_month, $five_days_before_expiry);
             $stmt->execute();
             $result_2 = $stmt->get_result();
             $total_clients = 0;
@@ -133,6 +134,45 @@ if ($result) {
             $stmt->execute();
         }
     }
+}
+
+function modifyDate($date, $period, $unit = 'days', $format = "YmdHis") {
+    // Normalize the unit
+    $unit = strtolower(trim($unit));
+
+    // Determine if we are adding or subtracting
+    $sign = ($period >= 0) ? '+' : '';
+
+    // Build the interval string
+    switch ($unit) {
+        case 'day':
+        case 'days':
+            $intervalSpec = "{$sign}{$period} days";
+            break;
+        case 'week':
+        case 'weeks':
+            $intervalSpec = "{$sign}{$period} weeks";
+            break;
+        case 'month':
+        case 'months':
+            $intervalSpec = "{$sign}{$period} months";
+            break;
+        case 'year':
+        case 'years':
+            $intervalSpec = "{$sign}{$period} years";
+            break;
+        default:
+            $intervalSpec = "{$sign}{$period} days";
+    }
+
+    // Create the DateTime object
+    $dateTime = new DateTime($date);
+
+    // Modify the date
+    $dateTime->modify($intervalSpec);
+
+    // Return the new date in Y-m-d format
+    return $dateTime->format($format);
 }
 
 function get_sms($conn, $category = null, $sub_category = null){
