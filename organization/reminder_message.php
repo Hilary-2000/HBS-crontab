@@ -83,6 +83,7 @@ if ($result) {
             // deduct wallet amount
             $total_cost -= $row->wallet*1;
             
+            // message to send
             $message = get_sms($conn, "Remind_payment", "day_after");
             $message = message_content($message,$row->organization_id,$conn, 0, $total_cost);
             
