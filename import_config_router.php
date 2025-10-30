@@ -22,11 +22,11 @@
 				// database name
 				$database_name = $rowed['organization_database'];
 				echo $database_name."<br>";
-                if (
-                    $database_name != "mikrotik_cloud" && 
-                    $database_name != "HBS106") {
-                    continue;
-                }
+                // if (
+                //     $database_name != "mikrotik_cloud" && 
+                //     $database_name != "HBS106") {
+                //     continue;
+                // }
 				
 				// get connection to the database and get the values of the users that are due that minute
 				// Connect REMOTE
@@ -76,7 +76,7 @@
                                     $API_2 = new routeros_api2();
                                     $API_2->debug = false;
                                     if ($API_2->connect($client_router_ip,$sstp_username,$sstp_password,$api_port)){
-                                        $file_url = "https://test_billing.hypbits.com/scripts/import_config.rsc";
+                                        $file_url = "https://billing.hypbits.com/scripts/import_config.rsc";
                                         // Step 1: Delete old scripts if it exists
                                         $scripts = $API_2->comm("/system/script/print", [
                                             ".proplist" => ".id,name"
@@ -115,7 +115,7 @@
 
                                         $API_2->write("/system/script/add", false);
                                         $API_2->write("=name=run_import_script", false);
-                                        $API_2->write("=source=/import file-name=import_config.rsc", true);
+                                        $API_2->write("=source=/import file-name=import_config.rsc;\n:foreach i in=[/system/script/environment find] do={\n    /system/script/environment remove \$i\n}", true);
                                         $API_2->read(false); // don't wait forever
 
                                         // // Step 2: Run the script
