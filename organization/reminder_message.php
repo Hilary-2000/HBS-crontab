@@ -47,7 +47,7 @@ if ($result) {
             $message = message_content($message,$row->organization_id,$conn, 0, $total_cost);
             
             // send_sms
-            if(isset($message)){
+            if(isset($message) && $total_cost > 0){
                 send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
             }
         }
@@ -67,7 +67,7 @@ if ($result) {
             $message = message_content($message,$row->organization_id,$conn, 0, $total_cost);
             
             // send_sms
-            if(isset($message)){
+            if(isset($message) && $total_cost > 0){
                 send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
             }
             // echo $message;
@@ -88,7 +88,7 @@ if ($result) {
             $message = message_content($message,$row->organization_id,$conn, 0, $total_cost);
             
             // send_sms
-            if(isset($message)){
+            if(isset($message) && $total_cost > 0){
                 send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
             }
             // echo $message;
@@ -107,7 +107,7 @@ function getMonthlyPayment($organization_data, $hostname, $dbusername, $dbpasswo
         // check the number of clients they have active in the last three months
         $sql = "SELECT COUNT(*) AS 'total' FROM client_tables WHERE next_expiration_date >= ? AND clients_reg_date <= ?";
         $stmt = $conn2->prepare($sql);
-        $last_active_month = date("Ymd", strtotime($months_last_active))."235959";
+        $last_active_month = date("Ym", strtotime($months_last_active))."01235959";
         $five_days_before_expiry = modifyDate($organization_data->expiry_date,-5);
         $stmt->bind_param("ss", $last_active_month, $five_days_before_expiry);
         $stmt->execute();
