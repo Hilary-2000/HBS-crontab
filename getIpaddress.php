@@ -45,6 +45,11 @@
 			$interfaces = router_interfaces($_GET['r_id'],$conn);
 			echo json_encode($interfaces);
 
+		}elseif (isset($_GET['r_id']) && isset($_GET['r_ip_pool'])) {
+			// get interfaces
+			$pool = router_ip_pool($_GET['r_id'],$conn);
+			echo json_encode($pool);
+
 		}elseif (isset($_GET['r_id']) && isset($_GET['r_ppoe_profiles'])) {
 			// get the pppoe profile
 			$router_id = $_GET['r_id'];
@@ -55,6 +60,12 @@
 			// get the pppoe secret
 			$router_id = $_GET['r_id'];
 			$router_secrets = router_ppoe_secrets($router_id,$conn);
+			echo json_encode($router_secrets);
+
+		}elseif (isset($_GET['r_id']) && isset($_GET['r_bridge_ports'])) {
+			// get the pppoe secret
+			$router_id = $_GET['r_id'];
+			$router_secrets = router_bridge_ports($router_id,$conn);
 			echo json_encode($router_secrets);
 
 		}elseif (isset($_GET['r_id']) && isset($_GET['r_active_secrets'])) {
@@ -332,6 +343,61 @@
 		}
 		return [];
 	}
+
+	function router_bridge_ports($router_id,$conn){
+		// get the router information
+		// connect to the router
+		// print the ip addresses
+		// then get the id of the ip address of the user
+
+		$select = "SELECT * FROM `remote_routers` WHERE `router_id` = ? AND `deleted` = '0'";
+		$stmt = $conn->prepare($select);
+		$stmt->bind_param("s",$router_id);
+		$stmt->execute();
+		$result = $stmt->get_result();
+		if($result){
+			if($row = $result->fetch_assoc()){
+				// hey yje sstp server details
+				$sstp_username = $row['sstp_username'];
+				$sstp_password = $row['sstp_password'];
+				$api_port = $row['api_port'];
+				
+				// connect to the router and set the sstp client
+				$sstp_value = getSSTPAddress($conn);
+				if (isJson($sstp_value)) {
+					// sstp value
+					$sstp_value = json_decode($sstp_value);
+
+					// server settings
+					$ip_address = $sstp_value->ip_address;
+					$user = $sstp_value->username;
+					$pass = $sstp_value->password;
+					$port = $sstp_value->port;
+
+					require_once "./routeros_api.php";
+					$API = new routeros_api();
+					$API->debug = false;
+					if ($API->connect($ip_address,$user,$pass,$port)){
+						$API->disconnect();
+						$client_router_ip = checkActive($ip_address,$user,$pass,$port,$sstp_username);
+						if ($client_router_ip != false) {
+							// connect to the router and get the ip addresses
+							$API_2 = new routeros_api();
+							$API_2->debug = false;
+							if ($API_2->connect($client_router_ip,$sstp_username,$sstp_password,$api_port)){
+								$interfaces = $API_2->comm("/interface/bridge/port/print");
+								$API_2->disconnect();
+								return $interfaces;
+							}
+						}
+					}
+
+				}
+			}
+		}
+		return [];
+	}
+
 	function router_ppoe_secrets($router_id,$conn){
 		// get the router information
 		// connect to the router
@@ -425,6 +491,54 @@
 							$interfaces = $API_2->comm("/ppp/profile/print");
 							$API_2->disconnect();
 							return $interfaces;
+						}
+					}
+
+				}
+			}
+		}
+		return [];
+	}
+
+	function router_ip_pool($router_id,$conn){
+		// get the router information
+		// connect to the router
+		// print the ip addresses
+		// then get the id of the ip address of the user
+
+		$select = "SELECT * FROM `remote_routers` WHERE `router_id` = ? AND `deleted` = '0'";
+		$stmt = $conn->prepare($select);
+		$stmt->bind_param("s",$router_id);
+		$stmt->execute();
+		$result = $stmt->get_result();
+		if($result){
+			if($row = $result->fetch_assoc()){
+				// hey yje sstp server details
+				$sstp_username = $row['sstp_username'];
+				$sstp_password = $row['sstp_password'];
+				$api_port = $row['api_port'];
+				
+				// connect to the router and set the sstp client
+				$sstp_value = getSSTPAddress($conn);
+				if (isJson($sstp_value)) {
+					// sstp value
+					$sstp_value = json_decode($sstp_value);
+
+					// server settings
+					$ip_address = $sstp_value->ip_address;
+					$user = $sstp_value->username;
+					$pass = $sstp_value->password;
+					$port = $sstp_value->port;
+					
+					$client_router_ip = checkActive($ip_address,$user,$pass,$port,$sstp_username);
+					if ($client_router_ip != false) {
+						// connect to the router and get the ip addresses
+						$API_2 = new routeros_api();
+						$API_2->debug = false;
+						if ($API_2->connect($client_router_ip,$sstp_username,$sstp_password,$api_port)){
+							$pool = $API_2->comm("/ip/pool/print");
+							$API_2->disconnect();
+							return $pool;
 						}
 					}
 
