@@ -11,7 +11,7 @@ include __DIR__."/../allowed_ip.php";
 date_default_timezone_set('Africa/Nairobi');
 
 #CONSTANTS
-$months_last_active = "-3 months";
+$months_last_active = "-1 months";
 
 $batch_of_client = 50; //number of clients to charge
 
@@ -36,7 +36,7 @@ if (mysqli_connect_errno()) {
 }
 
 // PROCEED AND GET THE ORGANIZATIONS TO ACTIVATE AND DEACTIVATED
-$sql = "SELECT * FROM organizations";
+$sql = "SELECT * FROM organizations WHERE payment_status = '1'";
 $stmt = $conn->prepare($sql);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -46,7 +46,6 @@ if ($result) {
         $database_name = $row->organization_database;
         $monthly_payment = $row->monthly_payment;
         $wallet = $row->wallet*1;
-        // echo $database_name."<hr>";
         
         if (date("YmdHis")*1 > $row->expiry_date*1) {
             // get connection to the database and get the values of the users that are due that minute
@@ -247,12 +246,12 @@ function message_content($data,$organization_id, $conn, $trans_amount = 0, $this
         $data = str_replace("[org_address]", $address, $data);
         $data = str_replace("[exp_date]", $exp_date." at ".$exp_time, $data);
         $data = str_replace("[reg_date]", $reg_date, $data);
-        $data = str_replace("[monthly_fees]", $organization_data[0]->monthly_payment,$data);
-        $data = str_replace("[this_month_payment]", $this_month_payment,$data);
+        $data = str_replace("[monthly_fees]", number_format($organization_data[0]->monthly_payment),$data);
+        $data = str_replace("[this_month_payment]", number_format($this_month_payment),$data);
         $data = str_replace("[org_contact]", $contacts, $data);
         $data = str_replace("[acc_no]", $account_no, $data);
-        $data = str_replace("[org_wallet]", "Ksh ".$wallet, $data);
-        $data = str_replace("[trans_amnt]", "Ksh ".$trans_amount, $data);
+        $data = str_replace("[org_wallet]", number_format($wallet), $data);
+        $data = str_replace("[trans_amnt]", number_format($trans_amount), $data);
         $data = str_replace("[today]", $today, $data);
         $data = str_replace("[now]", $now,$data);
         return $data;
@@ -325,11 +324,9 @@ function send_sms($conn,$phone_number,$message,$acc_id){
         \curl_close($ch);
         $res = json_decode($response);
         // return $res;
-        // echo json_encode($mobile)." pen <br>";
         $message_status = 0;
         $values = $res->responses[0];
         foreach ($values as  $key => $value) {
-            // echo $key;
             if ($key == "response-code") {
                 if ($value == "200") {
                     // if its 200 the message is sent delete the
