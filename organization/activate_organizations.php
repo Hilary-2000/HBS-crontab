@@ -50,7 +50,7 @@ if ($result) {
         // if the organization expiry date is reached
         if (date("YmdHis")*1 > $row->expiry_date*1) {
             $total_cost = getMonthlyPayment($row, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost);
-            if($wallet >= $total_cost){
+            if($wallet >= $total_cost && $wallet > 0 && $total_cost > 0){
                 // extend the client
                 $next_expiry_date = date("YmdHis", strtotime("1 month"));
                 $wallet -= $total_cost;
