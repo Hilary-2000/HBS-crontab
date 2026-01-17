@@ -11,7 +11,7 @@ include __DIR__."/../allowed_ip.php";
 date_default_timezone_set('Africa/Nairobi');
 
 #CONSTANTS
-$months_last_active = "-1 months";
+$months_last_active = "-3 months";  //months to check for last active clients
 
 $batch_of_client = 50; //number of clients to charge
 
@@ -46,86 +46,61 @@ if ($result) {
         $database_name = $row->organization_database;
         $monthly_payment = $row->monthly_payment;
         $wallet = $row->wallet*1;
-        
+
+        // if the organization expiry date is reached
         if (date("YmdHis")*1 > $row->expiry_date*1) {
-            // get connection to the database and get the values of the users that are due that minute
-            $dbname = $database_name;
-            $conn2 = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
-            // Check connection
-            if (mysqli_connect_errno()) {
-                // die("Failed to connect to MySQL: " . mysqli_connect_error());
-                // exit();
-                continue;
-            }
-
-            // check the number of clients they have active in the last three months
-            $sql = "SELECT COUNT(*) AS 'total' FROM client_tables WHERE next_expiration_date >= ? AND clients_reg_date <= ?";
-            $stmt = $conn2->prepare($sql);
-            $last_active_month = date("Ym", strtotime($months_last_active))."01235959";
-            $five_days_before_expiry = modifyDate($row->expiry_date,-5);
-            $stmt->bind_param("ss", $last_active_month, $five_days_before_expiry);
-            $stmt->execute();
-            $result_2 = $stmt->get_result();
-            $total_clients = 0;
-            if ($result_2) {
-                if ($rowed = $result_2->fetch_assoc()) {
-                    $total_clients = $rowed['total']*1;
-                }
-            }
-
-            if ($total_clients > $free_clients) {
-                $total_cost = $total_clients > 100 ? $total_clients * $per_head_cost : 1000;
-
-                if($wallet >= $total_cost){
-                    // extend the client
-                    $next_expiry_date = date("YmdHis", strtotime("1 month"));
-                    $wallet -= $total_cost;
-                    $update = "UPDATE organizations SET `wallet` = ?, `expiry_date` = ?, `organization_status` = '1' WHERE organization_id = ?";
-                    $stmt = $conn->prepare($update);
-                    $stmt->bind_param("sss", $wallet, $next_expiry_date, $row->organization_id);
-                    $stmt->execute();
+            $total_cost = getMonthlyPayment($row, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost);
+            if($wallet >= $total_cost){
+                // extend the client
+                $next_expiry_date = date("YmdHis", strtotime("1 month"));
+                $wallet -= $total_cost;
+                $update = "UPDATE organizations SET `wallet` = ?, `expiry_date` = ?, `organization_status` = '1' WHERE organization_id = ?";
+                $stmt = $conn->prepare($update);
+                $stmt->bind_param("sss", $wallet, $next_expiry_date, $row->organization_id);
+                $stmt->execute();
+                
+                if ($row->organization_status == "1"){
+                    // send the message
+                    $message = get_sms($conn, "renew_account", "account_extended");
+                    $message = message_content($message,$row->organization_id,$conn,0,$total_cost);
                     
-                    if ($row->organization_status == "1"){
-                        // send the message
-                        $message = get_sms($conn, "renew_account", "account_extended");
-                        $message = message_content($message,$row->organization_id,$conn,0,$total_cost);
-                        
-                        // send_sms
-                        send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
-                    }else{
-                        // send the message
-                        $message = get_sms($conn, "renew_account", "account_blocked");
-                        $message = message_content($message,$row->organization_id,$conn,0,$total_cost);
-                        
-                        // send_sms
-                        send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
-                    }
+                    // send_sms
+                    send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
                 }else{
-                    if ($row->organization_status == "1") {
-                        // first time deactivation send a message
-                        // extend the client
-                        $update = "UPDATE organizations SET `organization_status` = '0' WHERE organization_id = ?";
-                        $stmt = $conn->prepare($update);
-                        $stmt->bind_param("s", $row->organization_id);
-                        $stmt->execute();
-                        
-                        $message = get_sms($conn, "renew_account", "account_deactivated");
-                        $message = message_content($message,$row->organization_id,$conn,0,$total_cost);
-
-                        // send_sms
-                        send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
-                    }else{
-                        // extend the client
-                        $update = "UPDATE organizations SET `organization_status` = '0' WHERE organization_id = ?";
-                        $stmt = $conn->prepare($update);
-                        $stmt->bind_param("s", $row->organization_id);
-                        $stmt->execute();
-                    }
+                    // send the message
+                    $message = get_sms($conn, "renew_account", "account_blocked");
+                    $message = message_content($message,$row->organization_id,$conn,0,$total_cost);
+                    
+                    // send_sms
+                    send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
                 }
             }else{
-                // echo "No clients or Served free!<br><hr>";
+                if ($row->organization_status == "1") {
+                    // first time deactivation send a message
+                    // extend the client
+                    $update = "UPDATE organizations SET `organization_status` = '0' WHERE organization_id = ?";
+                    $stmt = $conn->prepare($update);
+                    $stmt->bind_param("s", $row->organization_id);
+                    $stmt->execute();
+                    
+                    $message = get_sms($conn, "renew_account", "account_deactivated");
+                    $message = message_content($message,$row->organization_id,$conn,0,$total_cost);
+
+                    // send_sms
+                    send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
+                }else{
+                    // extend the client
+                    $update = "UPDATE organizations SET `organization_status` = '0' WHERE organization_id = ?";
+                    $stmt = $conn->prepare($update);
+                    $stmt->bind_param("s", $row->organization_id);
+                    $stmt->execute();
+                }
             }
         }else{
+            if($row->organization_status == "1"){
+                // organization is active
+                continue;
+            }
             // KEEP THE ORGANIZATION STATUS AS ON WHEN THE EXPIRATION DATE IS NOT REACHED!
             $update = "UPDATE organizations SET `organization_status` = '1' WHERE organization_id = ?";
             $stmt = $conn->prepare($update);
@@ -133,6 +108,37 @@ if ($result) {
             $stmt->execute();
         }
     }
+}
+
+function getMonthlyPayment($organization_data, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost){
+        // GET THAT MONTHLY PAYMENT AMOUNT
+        $dbname = $organization_data->organization_database;
+        $conn2 = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
+        if (mysqli_connect_errno()) {
+            return 0;
+        }
+
+        // check the number of clients they have active in the last three months
+        $sql = "SELECT COUNT(*) AS 'total' FROM client_tables WHERE next_expiration_date >= ? AND clients_reg_date <= ?";
+        $stmt = $conn2->prepare($sql);
+        $last_active_month = date("Ym", strtotime($months_last_active))."01235959";
+        $five_days_before_expiry = modifyDate($organization_data->expiry_date,-5);
+        $stmt->bind_param("ss", $last_active_month, $five_days_before_expiry);
+        $stmt->execute();
+        $result_2 = $stmt->get_result();
+        $total_clients = 0;
+        if ($result_2) {
+            if ($rowed = $result_2->fetch_assoc()) {
+                $total_clients = $rowed['total']*1;
+            }
+        }
+        
+        $total_cost = 0;
+        if ($total_clients > $free_clients) {
+            $total_clients -= $free_clients;
+            $total_cost = $total_clients > 100 ? $total_clients * $per_head_cost : 1000;
+        }
+        return $total_cost;
 }
 
 function modifyDate($date, $period, $unit = 'days', $format = "YmdHis") {

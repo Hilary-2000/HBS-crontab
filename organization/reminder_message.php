@@ -11,7 +11,7 @@ include __DIR__."/../allowed_ip.php";
 date_default_timezone_set('Africa/Nairobi');
 
 #CONSTANTS
-$months_last_active = "-1 months";
+$months_last_active = "-3 months"; //months to check for last active clients
 
 $batch_of_client = 50; //number of clients to charge
 
@@ -119,6 +119,7 @@ function getMonthlyPayment($organization_data, $hostname, $dbusername, $dbpasswo
         
         $total_cost = 0;
         if ($total_clients > $free_clients) {
+            $total_clients -= $free_clients;
             $total_cost = $total_clients > 100 ? $total_clients * $per_head_cost : 1000;
         }
         return $total_cost;
