@@ -49,7 +49,7 @@ if ($result) {
 
         // if the organization expiry date is reached
         if (date("YmdHis")*1 > $row->expiry_date*1) {
-            $total_cost = getMonthlyPayment($row, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost);
+            $total_cost = getMonthlyPayment($row, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost, $batch_of_client);
             if($wallet >= $total_cost && $wallet > 0 && $total_cost > 0){
                 // extend the client
                 $next_expiry_date = date("YmdHis", strtotime("1 month"));
@@ -110,7 +110,7 @@ if ($result) {
     }
 }
 
-function getMonthlyPayment($organization_data, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost){
+function getMonthlyPayment($organization_data, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost, $batch_of_client = 50){
         // GET THAT MONTHLY PAYMENT AMOUNT
         $dbname = $organization_data->organization_database;
         $conn2 = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
@@ -136,7 +136,7 @@ function getMonthlyPayment($organization_data, $hostname, $dbusername, $dbpasswo
         $total_cost = 1000;
         if ($total_clients > $free_clients) {
             $total_clients -= $free_clients;
-            $total_cost = $total_clients > 100 ? $total_clients * $per_head_cost : 1000;
+            $total_cost = $total_clients > $batch_of_client ? $total_clients * $per_head_cost : 1000;
             $total_cost = $total_cost != 0 ? $total_cost : 1000;
         }
         return $total_cost;

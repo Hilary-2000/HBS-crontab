@@ -6,7 +6,7 @@
  * WHEN THEY MAKE PAYMENTS.
  */
 
-include __DIR__."/../allowed_ip.php";
+// include __DIR__."/../allowed_ip.php";
 
 date_default_timezone_set('Africa/Nairobi');
 
@@ -37,7 +37,7 @@ if ($result) {
         $tommorow_end = (date("Ymd", strtotime("1 day"))."235959")*1;
         if ($row->expiry_date >= $tommorow_start && $row->expiry_date <= $tommorow_end) {
             // get monthly payments
-            $total_cost = getMonthlyPayment($row, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost);
+            $total_cost = getMonthlyPayment($row, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost, $batch_of_client);
 
             // deduct wallet amount
             $total_cost -= $row->wallet*1;
@@ -58,7 +58,7 @@ if ($result) {
         $today_end = date("Ymd")."235959"*1;
         if ($row->expiry_date >= $today_start && $row->expiry_date <= $today_end) {
             // get monthly payments
-            $total_cost = getMonthlyPayment($row, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost);
+            $total_cost = getMonthlyPayment($row, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost, $batch_of_client);
 
             // deduct wallet amount
             $total_cost -= $row->wallet*1;
@@ -77,7 +77,7 @@ if ($result) {
         $day_after_end = (date("Ymd", strtotime("-1 day"))."235959")*1;
         if ($row->expiry_date >= $day_after_start && $row->expiry_date <= $day_after_end) {
             // get monthly payments
-            $total_cost = getMonthlyPayment($row, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost);
+            $total_cost = getMonthlyPayment($row, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost, $batch_of_client);
             
             // deduct wallet amount
             $total_cost -= $row->wallet*1;
@@ -93,8 +93,7 @@ if ($result) {
         }
     }
 }
-
-function getMonthlyPayment($organization_data, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost){
+function getMonthlyPayment($organization_data, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost, $batch_of_client = 50){
         // GET THAT MONTHLY PAYMENT AMOUNT
         $dbname = $organization_data->organization_database;
         $conn2 = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
@@ -117,10 +116,10 @@ function getMonthlyPayment($organization_data, $hostname, $dbusername, $dbpasswo
             }
         }
         
-        $total_cost = 0;
+        $total_cost = 1000;
         if ($total_clients > $free_clients) {
             $total_clients -= $free_clients;
-            $total_cost = $total_clients > 100 ? $total_clients * $per_head_cost : 1000;
+            $total_cost = $total_clients > $batch_of_client ? $total_clients * $per_head_cost : 1000;
             $total_cost = $total_cost != 0 ? $total_cost : 1000;
         }
         return $total_cost;
