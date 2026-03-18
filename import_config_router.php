@@ -12,7 +12,7 @@
 	include "shared_functions.php";
 	
 	if ($conn1) {
-		require_once "./routeros_api2.php";
+		require_once "routeros_api2.php";
 		$select = "SELECT * FROM `organizations` WHERE `organization_status` = '1'";
 		$stmt = $conn1->prepare($select);
 		$stmt->execute();
@@ -157,7 +157,7 @@
 	}
 
     function checkActive($ip_address,$user,$pass,$port,$sstp_username){
-		require_once "./routeros_api.php";
+		require_once "routeros_api.php";
         $API_3 = new routeros_api();
         $API_3->debug = false;
 
