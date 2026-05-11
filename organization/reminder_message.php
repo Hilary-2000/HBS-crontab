@@ -104,7 +104,7 @@ function getMonthlyPayment($organization_data, $hostname, $dbusername, $dbpasswo
         // check the number of clients they have active in the last three months
         $sql = "SELECT COUNT(*) AS 'total' FROM client_tables WHERE next_expiration_date >= ? AND clients_reg_date <= ?";
         $stmt = $conn2->prepare($sql);
-        $last_active_month = date("Ym", strtotime($months_last_active))."01235959";
+        $last_active_month = date("Ym", strtotime($months_last_active))."01000000";
         $five_days_before_expiry = modifyDate($organization_data->expiry_date,-5);
         $stmt->bind_param("ss", $last_active_month, $five_days_before_expiry);
         $stmt->execute();

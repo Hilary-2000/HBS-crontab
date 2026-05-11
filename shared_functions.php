@@ -177,12 +177,14 @@
 				$url = "https://smsportal.hostpinnacle.co.ke/SMSApi/send";
 				
 				// Prepare POST fields
+				$formatted_mobile = formatKenyanPhone($mobile);
+				if (!$formatted_mobile) return;
 				$postData = [
 					"userid"     => $apikey,
 					"password"     => $partnerID,
 					"senderid"   => urlencode($shortcode),
 					"msg"        => urlencode($message),
-					"mobile"   => formatKenyanPhone($mobile),
+					"mobile"   => $formatted_mobile,
 					"sendMethod" => "quick",
 					"msgType"    => "text",  // or 'unicode' if sending special characters
 					"output"     => "json"   // Response format: json, xml, plain
@@ -204,9 +206,10 @@
 			}elseif ($sms_sender == "talksasa") {
 				$url = "https://bulksms.talksasa.com/api/v3/sms/send";
 				$phone = explode(",",$mobile);
-				$phone = array_map(function($num) {
+				$phone = array_filter(array_map(function($num) {
 					return formatKenyanPhone($num);
-				}, $phone);
+				}, $phone));
+				if (empty($phone)) return;
 				$phone = implode(",", $phone);
 
 				$payload = [
@@ -233,19 +236,50 @@
 				$error = curl_error($ch);
 				$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 				curl_close($ch);
-				$message_status = 1;
+				$message_status = 0;
+				$response = json_decode($response, true);
+				if (isset($response['status']) && $response['status'] == "success") {
+					$message_status = 1;
+					// echo "Message sent successfully.";
+				}
+			}elseif ($sms_sender == "blessedtexts") {
+				$url = "https://sms.blessedtexts.com/api/sms/v1/sendsms";
+				$phone = explode(",",$mobile);
+				$phone = array_filter(array_map(function($num) {
+					return formatKenyanPhone($num);
+				}, $phone));
+				if (empty($phone)) return;
+				$phone = implode(",", $phone);
 
-				// if ($response === false) {
-				// 	return ["success" => false, "response" => "cURL error: {$error}"];
-				// }
+				$payload = [
+					"phone" => $phone,
+					"sender_id" => $shortcode,
+					"message" => $message,
+					"api_key" => $apikey
+				];
 
-				// $decoded = json_decode($response, true);
+				$ch = curl_init($url);
+				curl_setopt_array($ch, [
+					CURLOPT_RETURNTRANSFER => true,
+					CURLOPT_FAILONERROR    => false,
+					CURLOPT_HTTPHEADER     => [
+						"Accept: application/json",
+						"Content-Type: application/json",
+					],
+					CURLOPT_POST           => true,
+					CURLOPT_POSTFIELDS     => json_encode($payload),
+				]);
 
-				// return [
-				// 	"success"  => $httpCode >= 200 && $httpCode < 300,
-				// 	"status"   => $httpCode,
-				// 	"response" => $decoded ?: $response,
-				// ];
+				$response = curl_exec($ch);
+				$error    = curl_error($ch);
+				$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+				curl_close($ch);
+				$message_status = 0;
+				$decoded = json_decode($response, true);
+				if(isset($decoded['status_code']) && $decoded['status_code'] == "1000"){
+					$message_status = 1;
+					// echo "Message sent successfully.";
+				}
 			}
 		}
 
