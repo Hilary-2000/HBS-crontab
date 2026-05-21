@@ -37,9 +37,6 @@
 					// date tommorow
 					$tommorow = date("Ymd",strtotime("1 day"));
 
-					// date today
-					$today = date("Ymd");
-
 					// date one day after
 					$yesterday = date("Ymd",strtotime("-1 day"));
 			
@@ -63,36 +60,11 @@
 							if ($message) {
 								$trans_amount = 0;
 								$message = message_content($message,$row['client_id'],$conn,$trans_amount);
-								send_sms($conn,$row['clients_contacts'],$message,$row['client_id'],$rowed['send_sms']);
+								send_message($conn,$row['clients_contacts'],$message,$row['client_id'],$rowed['send_sms'],'payment_reminder_day_after');
 							}
 						}
 					}
-			
-					// get the users that are to pay today
-					$select = "SELECT `client_id`,`client_name`,`router_name`,`client_status`,`client_network`,`monthly_payment`,`client_account`,`wallet_amount`,`clients_contacts` FROM `client_tables` WHERE `next_expiration_date` LIKE '$today%' AND `payments_status` = '1';";
-					$stmt = $conn->prepare($select);
-					$stmt->execute();
-					$result = $stmt->get_result();
-					if ($result) {
-						while ($row = $result->fetch_assoc()) {
-							// SKIP THOSE THAT HAVE WALLET AMOUNT THAT CAN PAY THEIR MONTHLY BILL
-							$wallet_amount = $row['wallet_amount'];
-							$monthly_payment = $row['monthly_payment'];
-							if ($wallet_amount >= $monthly_payment) {
-								continue;
-							}
 
-							// SEND MESSAGE
-							$message_contents = get_sms($conn);
-							$message = $message_contents[0]->messages[1]->message;
-							if ($message) {
-								$trans_amount = 0;
-								$message = message_content($message,$row['client_id'],$conn,$trans_amount);
-								send_sms($conn,$row['clients_contacts'],$message,$row['client_id'],$rowed['send_sms']);
-							}
-						}
-					}
-					
 					// get the users that are to pay tommorow
 					$select = "SELECT `client_id`,`client_name`,`router_name`,`client_status`,`client_network`,`monthly_payment`,`client_account`,`wallet_amount`,`clients_contacts` FROM `client_tables` WHERE `next_expiration_date` LIKE '$tommorow%' AND `payments_status` = '1';";
 					$stmt = $conn->prepare($select);
@@ -113,7 +85,7 @@
 							if ($message) {
 								$trans_amount = 0;
 								$message = message_content($message,$row['client_id'],$conn,$trans_amount);
-								send_sms($conn,$row['clients_contacts'],$message,$row['client_id'],$rowed['send_sms']);
+								send_message($conn,$row['clients_contacts'],$message,$row['client_id'],$rowed['send_sms'],'payment_reminder_day_before');
 							}
 						}
 					}

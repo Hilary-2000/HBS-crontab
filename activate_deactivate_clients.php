@@ -82,7 +82,7 @@
 										echo $message."<br>";
 										// activate the user in the router
 										// $message = "Dear ".ucfirst(strtolower(explode(" ",$client_name)[0])).", Your Acc ".$client_account." has been renewed. your wallet Bal:".$new_wallet." KSH.Check acc status on billing.hypbits.com/login. For enquires call 0717748569";
-										send_sms($conn,$client_contacts,$message,$client_id,$rowed['send_sms']);
+										send_message($conn,$client_contacts,$message,$client_id,$rowed['send_sms'],'account_renewed');
 									}
 			
 								}else {
@@ -94,7 +94,7 @@
 										echo $message."<br>";
 										// send the user an SMS
 										// $message = "Dear ".ucfirst(strtolower(explode(" ",$client_name)[0])).", Your Acc ".$client_account." has been extended for the next 30 days. Your wallet Bal:".$new_wallet." KSH.Check acc status on billing.hypbits.com/login. For enquires call 0717748569";
-										send_sms($conn,$client_contacts,$message,$client_id,$rowed['send_sms']);
+										send_message($conn,$client_contacts,$message,$client_id,$rowed['send_sms'],'account_extended');
 									}
 								}
 							}else {
@@ -113,7 +113,7 @@
 												$message = message_content($message,$client_id,$conn,$trans_amount);
 												// send the user an SMS
 												echo $message."<br>";
-												send_sms($conn,$client_contacts,$message,$client_id,$rowed['send_sms']);
+												send_message($conn,$client_contacts,$message,$client_id,$rowed['send_sms'],'account_deactivated');
 											}
 			
 											// function to deactivate client
@@ -157,7 +157,7 @@
 											$message = message_content($message,$client_id,$conn,$trans_amount);
 											echo $message."<br>";
 											// send the user an SMS
-											send_sms($conn,$client_contacts,$message,$client_id,$rowed['send_sms']);
+											send_message($conn,$client_contacts,$message,$client_id,$rowed['send_sms'],'account_extended');
 										}
 										// activate the router
 										activate_user($row,$rowed['organization_database']);

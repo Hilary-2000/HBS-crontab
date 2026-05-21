@@ -343,4 +343,165 @@
 			(is_object(json_decode($string)) ||
 				is_array(json_decode($string))))) ? true : false;
 	}
+
+	function getPreferredChannel($conn) {
+		$select = "SELECT `value` FROM `settings` WHERE `keyword` = 'preferred_channel';";
+		$stmt = $conn->prepare($select);
+		$stmt->execute();
+		$result = $stmt->get_result();
+		if ($result && ($row = $result->fetch_assoc())) {
+			return strtolower(trim($row['value']));
+		}
+		return 'sms';
+	}
+
+	function getWhatsAppKeys($conn) {
+		$keys = [];
+		foreach (['whatsapp_phone_id', 'whatsapp_access_token'] as $keyword) {
+			$select = "SELECT `value` FROM `settings` WHERE `keyword` = ?;";
+			$stmt = $conn->prepare($select);
+			$stmt->bind_param("s", $keyword);
+			$stmt->execute();
+			$result = $stmt->get_result();
+			$keys[] = ($result && ($row = $result->fetch_assoc())) ? $row['value'] : null;
+		}
+		return $keys; // [phone_id, access_token]
+	}
+
+	function getWhatsAppTemplate($internal_name) {
+		global $hostname, $dbusername, $dbpassword;
+		$conn_main = new mysqli($hostname, $dbusername, $dbpassword, 'mikrotik_cloud_manager');
+		if (mysqli_connect_errno()) return null;
+		$select = "SELECT `template_name`, `language`, `variables` FROM `whatsapp_automation_templates` WHERE `internal_name` = ? AND `is_active` = 1 AND `deleted` = '0'";
+		$stmt = $conn_main->prepare($select);
+		$stmt->bind_param("s", $internal_name);
+		$stmt->execute();
+		$result = $stmt->get_result();
+		$template = null;
+		if ($result && ($row = $result->fetch_assoc())) {
+			$template = [
+				'template_name' => $row['template_name'],
+				'language'      => $row['language'],
+				'variables'     => json_decode($row['variables'], true) ?? [],
+			];
+		}
+		$conn_main->close();
+		return $template;
+	}
+
+	function resolveWhatsAppVariables($variables, $client_id, $conn, $extra = []) {
+		$client = [];
+		if ($client_id) {
+			$select = "SELECT * FROM `client_tables` WHERE `client_id` = ?";
+			$stmt = $conn->prepare($select);
+			$stmt->bind_param("s", $client_id);
+			$stmt->execute();
+			$result = $stmt->get_result();
+			if ($result && ($row = $result->fetch_assoc())) {
+				$client = $row;
+			}
+		}
+		$full_name = $client['client_name'] ?? '';
+		$f_name    = $full_name ? ucfirst(lcfirst(explode(' ', $full_name)[0])) : '';
+		$exp_raw   = $client['next_expiration_date'] ?? '';
+		$exp_date  = $exp_raw ? date("dS-M-Y", strtotime($exp_raw)) . ' at ' . date("H:i:s", strtotime($exp_raw)) : '';
+		$monthly   = $client['monthly_payment'] ?? 0;
+		$min_pay   = $monthly > 0 ? 'Ksh ' . ceil($monthly / 4) : '';
+		$map = [
+			'client_name'           => $full_name,
+			'client_f_name'         => $f_name,
+			'acc_no'                => $client['client_account'] ?? '',
+			'exp_date'              => $exp_date,
+			'monthly_fees'          => 'Ksh ' . $monthly,
+			'client_wallet'         => 'Ksh ' . ($client['wallet_amount'] ?? ''),
+			'client_phone'          => $client['clients_contacts'] ?? '',
+			'username'              => $client['client_username'] ?? '',
+			'password'              => $client['client_password'] ?? '',
+			'today'                 => date("dS-M-Y"),
+			'now'                   => date("H:i:s"),
+			'trans_amnt'            => 'Ksh ' . ($extra['trans_amount'] ?? '0'),
+			'min_amnt'              => $min_pay,
+			'days_frozen'           => ($extra['freeze_days'] ?? '') . ' Day(s)',
+			'frozen_date'           => isset($extra['freeze_date']) ? date("D dS M Y", strtotime($extra['freeze_date'])) : '',
+			'unfreeze_date'         => isset($extra['unfreeze_date'])
+				? ($extra['unfreeze_date'] === 'Indefinite' ? 'Indefinite Date' : date("dS M Y \\a\\t h:iA", strtotime($extra['unfreeze_date'])))
+				: '',
+			'refferer_trans_amount' => 'Ksh ' . ($extra['refferer_trans_amount'] ?? ''),
+			'refferer_name'         => $extra['refferer_name'] ?? '',
+		];
+		$params = [];
+		foreach ($variables as $var) {
+			$params[] = (string)($map[$var] ?? '');
+		}
+		return $params;
+	}
+
+	function send_whatsapp($conn, $phone_number, $message, $acc_id, $send_whatsapp = 0, $template_key = null, $extra = []) {
+		if ($message == "" || $message == null || is_array($message)) {
+			return;
+		}
+		$message_status = 0;
+		if ($send_whatsapp == 1) {
+			$wa_keys      = getWhatsAppKeys($conn);
+			$phone_id     = $wa_keys[0];
+			$access_token = $wa_keys[1];
+			if ($phone_id && $access_token && $template_key) {
+				$formatted = formatKenyanPhone($phone_number);
+				if (!$formatted) return;
+				$template = getWhatsAppTemplate($template_key);
+				if ($template) {
+					$params = resolveWhatsAppVariables($template['variables'], $acc_id, $conn, $extra);
+					$components = [];
+					if (!empty($params)) {
+						$components[] = [
+							"type"       => "body",
+							"parameters" => array_map(fn($v) => ["type" => "text", "text" => $v], $params),
+						];
+					}
+					$payload = [
+						"messaging_product" => "whatsapp",
+						"to"                => $formatted,
+						"type"              => "template",
+						"template"          => [
+							"name"       => $template['template_name'],
+							"language"   => ["code" => $template['language']],
+							"components" => $components,
+						],
+					];
+					$url = "https://graph.facebook.com/v20.0/{$phone_id}/messages";
+					$ch  = curl_init($url);
+					curl_setopt_array($ch, [
+						CURLOPT_RETURNTRANSFER => true,
+						CURLOPT_POST           => true,
+						CURLOPT_POSTFIELDS     => json_encode($payload),
+						CURLOPT_HTTPHEADER     => [
+							"Authorization: Bearer {$access_token}",
+							"Content-Type: application/json",
+						],
+						CURLOPT_SSL_VERIFYPEER => false,
+					]);
+					$response = curl_exec($ch);
+					curl_close($ch);
+					$decoded = json_decode($response, true);
+					if (isset($decoded['messages'][0]['id'])) {
+						$message_status = 1;
+					}
+				}
+			}
+		}
+		$insert = "INSERT INTO `sms_tables` (`sms_content`,`date_sent`,`recipient_phone`,`sms_status`,`account_id`,`sms_type`) VALUES (?,?,?,?,?,?)";
+		$stmt = $conn->prepare($insert);
+		$now      = date("YmdHis");
+		$sms_type = 3;
+		$stmt->bind_param("ssssss", $message, $now, $phone_number, $message_status, $acc_id, $sms_type);
+		$stmt->execute();
+	}
+
+	function send_message($conn, $phone_number, $message, $acc_id, $send_flag = 0, $template_key = null, $extra = []) {
+		if (getPreferredChannel($conn) === 'whatsapp') {
+			send_whatsapp($conn, $phone_number, $message, $acc_id, $send_flag, $template_key, $extra);
+		} else {
+			send_sms($conn, $phone_number, $message, $acc_id, $send_flag);
+		}
+	}
 ?>
