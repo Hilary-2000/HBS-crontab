@@ -497,9 +497,272 @@
 		$stmt->execute();
 	}
 
+	// ─── Email support ────────────────────────────────────────────────────────
+
+	function getEmailSmtpSettings($conn) {
+		$stmt = $conn->prepare("SELECT `value` FROM `settings` WHERE `keyword` = 'email_settings' LIMIT 1");
+		if (!$stmt) return null;
+		$stmt->execute();
+		$result = $stmt->get_result();
+		if ($result && ($row = $result->fetch_assoc())) {
+			$cfg = json_decode($row['value'], true);
+			if (!empty($cfg['host']) && !empty($cfg['username']) && !empty($cfg['password'])) {
+				return $cfg;
+			}
+		}
+		return null;
+	}
+
+	function getOrgName($conn) {
+		$res = $conn->query("SELECT DATABASE()");
+		$db  = $res ? $res->fetch_row()[0] : '';
+		if (!$db) return 'Your ISP';
+		global $hostname, $dbusername, $dbpassword;
+		$mgr = new mysqli($hostname, $dbusername, $dbpassword, 'mikrotik_cloud_manager');
+		if (mysqli_connect_errno()) return 'Your ISP';
+		$stmt = $mgr->prepare("SELECT organization_name FROM organizations WHERE organization_database = ? LIMIT 1");
+		$stmt->bind_param('s', $db);
+		$stmt->execute();
+		$result = $stmt->get_result();
+		$name   = ($result && ($row = $result->fetch_assoc())) ? $row['organization_name'] : 'Your ISP';
+		$mgr->close();
+		return $name;
+	}
+
+	function getEmailDefaults() {
+		return [
+			'new_client_welcome' => [
+				'subject' => 'Welcome to [org_name] – Your Account is Ready',
+				'body'    => '<p>Dear <strong>[client_name]</strong>,</p>
+<p>Welcome to <strong>[org_name]</strong>! Your internet account has been created successfully.</p>
+<p><strong>Account Details</strong><br>Account Number: <strong>[account_number]</strong><br>Monthly Plan: <strong>[monthly_fees]</strong><br>Expiry Date: <strong>[exp_date]</strong></p>
+<p>If you have any questions, do not hesitate to contact us.</p>
+<p>Best regards,<br><strong>[org_name]</strong></p>',
+			],
+			'payment_received' => [
+				'subject' => 'Payment Received – [org_name]',
+				'body'    => '<p>Dear <strong>[client_name]</strong>,</p>
+<p>We have received your payment of <strong>[trans_amount]</strong>. Thank you!</p>
+<p><strong>Account Summary</strong><br>Account: <strong>[account_number]</strong><br>Wallet Balance: <strong>[wallet_balance]</strong><br>Expiry Date: <strong>[exp_date]</strong></p>
+<p>Best regards,<br><strong>[org_name]</strong></p>',
+			],
+			'payment_below_minimum' => [
+				'subject' => 'Payment Received – Below Minimum Threshold',
+				'body'    => '<p>Dear <strong>[client_name]</strong>,</p>
+<p>We have received your payment of <strong>[trans_amount]</strong>. However, your payment is below the minimum required amount of <strong>[min_amount]</strong>.</p>
+<p>Please top up the remaining balance to restore full service.</p>
+<p><strong>Account:</strong> [account_number]<br><strong>Wallet Balance:</strong> [wallet_balance]</p>
+<p>Best regards,<br><strong>[org_name]</strong></p>',
+			],
+			'payment_wrong_account' => [
+				'subject' => 'Payment Received for Unrecognised Account',
+				'body'    => '<p>Dear Customer,</p>
+<p>We have received a payment of <strong>[trans_amount]</strong> referencing an account number that does not exist in our system.</p>
+<p>Please contact us so we can resolve this for you.</p>
+<p>Best regards,<br><strong>[org_name]</strong></p>',
+			],
+			'account_renewed' => [
+				'subject' => 'Your Account Has Been Renewed – [org_name]',
+				'body'    => '<p>Dear <strong>[client_name]</strong>,</p>
+<p>Your internet account has been renewed successfully.</p>
+<p><strong>Account:</strong> [account_number]<br><strong>New Expiry Date:</strong> [exp_date]<br><strong>Wallet Balance:</strong> [wallet_balance]</p>
+<p>Enjoy uninterrupted internet access!</p>
+<p>Best regards,<br><strong>[org_name]</strong></p>',
+			],
+			'account_extended' => [
+				'subject' => 'Your Account Has Been Extended – [org_name]',
+				'body'    => '<p>Dear <strong>[client_name]</strong>,</p>
+<p>Your internet account has been extended.</p>
+<p><strong>Account:</strong> [account_number]<br><strong>New Expiry Date:</strong> [exp_date]<br><strong>Wallet Balance:</strong> [wallet_balance]</p>
+<p>Best regards,<br><strong>[org_name]</strong></p>',
+			],
+			'account_deactivated' => [
+				'subject' => 'Account Deactivated – [org_name]',
+				'body'    => '<p>Dear <strong>[client_name]</strong>,</p>
+<p>Your internet account (<strong>[account_number]</strong>) has been deactivated.</p>
+<p>To reactivate your account, please make a payment or contact us for assistance.</p>
+<p>Best regards,<br><strong>[org_name]</strong></p>',
+			],
+			'account_frozen' => [
+				'subject' => 'Your Account Has Been Frozen – [org_name]',
+				'body'    => '<p>Dear <strong>[client_name]</strong>,</p>
+<p>Your internet account (<strong>[account_number]</strong>) has been frozen for <strong>[days_frozen]</strong>.</p>
+<p>Your account will be automatically restored on <strong>[unfreeze_date]</strong>.</p>
+<p>If you have any queries, please contact us.</p>
+<p>Best regards,<br><strong>[org_name]</strong></p>',
+			],
+			'account_freeze_scheduled' => [
+				'subject' => 'Upcoming Account Freeze Notice – [org_name]',
+				'body'    => '<p>Dear <strong>[client_name]</strong>,</p>
+<p>This is a notice that your account (<strong>[account_number]</strong>) is scheduled to be frozen on <strong>[freeze_date]</strong> for <strong>[days_frozen]</strong>.</p>
+<p>It will be automatically restored on <strong>[unfreeze_date]</strong>.</p>
+<p>Contact us if you have any questions.</p>
+<p>Best regards,<br><strong>[org_name]</strong></p>',
+			],
+			'account_unfrozen' => [
+				'subject' => 'Your Account Has Been Reactivated – [org_name]',
+				'body'    => '<p>Dear <strong>[client_name]</strong>,</p>
+<p>Great news! Your internet account (<strong>[account_number]</strong>) has been unfrozen and is now active.</p>
+<p><strong>Expiry Date:</strong> [exp_date]</p>
+<p>Welcome back!</p>
+<p>Best regards,<br><strong>[org_name]</strong></p>',
+			],
+			'referral_commission' => [
+				'subject' => 'Referral Commission Credited – [org_name]',
+				'body'    => '<p>Dear <strong>[client_name]</strong>,</p>
+<p>A referral commission of <strong>[trans_amount]</strong> has been credited to your wallet.</p>
+<p><strong>Wallet Balance:</strong> [wallet_balance]</p>
+<p>Thank you for referring new clients to us!</p>
+<p>Best regards,<br><strong>[org_name]</strong></p>',
+			],
+			'payment_reminder_day_before' => [
+				'subject' => 'Your Account Expires Tomorrow – [org_name]',
+				'body'    => '<p>Dear <strong>[client_name]</strong>,</p>
+<p>Your internet account (<strong>[account_number]</strong>) expires <strong>tomorrow</strong>.</p>
+<p>Please make a payment to avoid service interruption.</p>
+<p><strong>Wallet Balance:</strong> [wallet_balance]</p>
+<p>Best regards,<br><strong>[org_name]</strong></p>',
+			],
+			'payment_reminder_day_after' => [
+				'subject' => 'Your Account Has Expired – [org_name]',
+				'body'    => '<p>Dear <strong>[client_name]</strong>,</p>
+<p>Your internet account (<strong>[account_number]</strong>) expired <strong>yesterday</strong>.</p>
+<p>Please make a payment to restore your service.</p>
+<p><strong>Wallet Balance:</strong> [wallet_balance]</p>
+<p>Best regards,<br><strong>[org_name]</strong></p>',
+			],
+		];
+	}
+
+	function getEmailTemplate($internal_name, $conn) {
+		$stmt = $conn->prepare("SELECT subject, html_body FROM email_templates WHERE name = ? LIMIT 1");
+		if (!$stmt) return null;
+		$stmt->bind_param('s', $internal_name);
+		$stmt->execute();
+		$result = $stmt->get_result();
+		if ($result && ($row = $result->fetch_assoc())) {
+			return ['subject' => $row['subject'], 'body' => $row['html_body']];
+		}
+		$defaults = getEmailDefaults();
+		return $defaults[$internal_name] ?? null;
+	}
+
+	function resolveEmailVars($template, $client, $extra, $org_name) {
+		$exp_raw  = $client['next_expiration_date'] ?? '';
+		$exp_date = $exp_raw ? date("D jS M Y", strtotime($exp_raw)) . ' at ' . date("g:i:sA", strtotime($exp_raw)) : '';
+		$map = [
+			'[client_name]'    => $client['client_name'] ?? '',
+			'[account_number]' => $client['client_account'] ?? '',
+			'[monthly_fees]'   => 'Ksh ' . number_format($client['monthly_payment'] ?? 0),
+			'[exp_date]'       => $exp_date,
+			'[wallet_balance]' => 'Ksh ' . number_format($client['wallet_amount'] ?? 0),
+			'[trans_amount]'   => 'Ksh ' . number_format($extra['trans_amount'] ?? 0),
+			'[min_amount]'     => 'Ksh ' . number_format($extra['min_amount'] ?? 0),
+			'[days_frozen]'    => ($extra['freeze_days'] ?? '0') . ' Day(s)',
+			'[unfreeze_date]'  => $extra['unfreeze_date'] ?? '',
+			'[freeze_date]'    => $extra['freeze_date'] ?? $extra['frozen_date'] ?? '',
+			'[org_name]'       => $org_name,
+		];
+		return str_replace(array_keys($map), array_values($map), $template);
+	}
+
+	function send_email($conn, $message, $acc_id, $send_flag = 0, $template_key = null, $extra = []) {
+		// Look up client to get email address and data for variable resolution
+		$client = [];
+		if ($acc_id) {
+			$stmt = $conn->prepare("SELECT * FROM client_tables WHERE client_id = ? LIMIT 1");
+			if ($stmt) {
+				$stmt->bind_param('s', $acc_id);
+				$stmt->execute();
+				$result = $stmt->get_result();
+				if ($result && ($row = $result->fetch_assoc())) {
+					$client = $row;
+				}
+			}
+		}
+		$email_address = $client['client_email'] ?? '';
+		$message_status = 0;
+
+		if ($send_flag == 1 && filter_var($email_address, FILTER_VALIDATE_EMAIL)) {
+			$org_name = getOrgName($conn);
+			$tpl      = $template_key ? getEmailTemplate($template_key, $conn) : null;
+
+			if ($tpl) {
+				$subject  = resolveEmailVars($tpl['subject'], $client, $extra, $org_name);
+				$html_body = resolveEmailVars($tpl['body'],    $client, $extra, $org_name);
+			} else {
+				$subject   = 'Message from ' . $org_name;
+				$html_body = '<p>' . nl2br(htmlspecialchars($message)) . '</p>';
+			}
+
+			$full_html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
+				. '<body style="font-family:Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:20px;">'
+				. $html_body
+				. '</body></html>';
+
+			global $smtp_host, $smtp_port, $smtp_username, $smtp_password, $smtp_from_name;
+			$orgSmtp = getEmailSmtpSettings($conn);
+			$host      = $orgSmtp['host']      ?? $smtp_host      ?? '';
+			$port      = $orgSmtp['port']      ?? $smtp_port      ?? 587;
+			$username  = $orgSmtp['username']  ?? $smtp_username  ?? '';
+			$password  = $orgSmtp['password']  ?? $smtp_password  ?? '';
+			$from_name = $orgSmtp['from_name'] ?? $smtp_from_name ?? '';
+			$enc       = $orgSmtp['encryption'] ?? 'tls';
+
+			// Skip sending if no SMTP credentials are configured
+			if (empty($host) || empty($username) || empty($password)) {
+				return;
+			}
+
+			require_once __DIR__ . '/phpmailer/src/Exception.php';
+			require_once __DIR__ . '/phpmailer/src/PHPMailer.php';
+			require_once __DIR__ . '/phpmailer/src/SMTP.php';
+
+			try {
+				$mail = new PHPMailer\PHPMailer\PHPMailer(true);
+				$mail->isSMTP();
+				$mail->Host     = $host;
+				$mail->SMTPAuth = true;
+				$mail->Username = $username;
+				$mail->Password = $password;
+				if ($enc === 'ssl') {
+					$mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+				} elseif ($enc === 'none') {
+					$mail->SMTPSecure = false;
+					$mail->SMTPAuth   = false;
+				} else {
+					$mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+				}
+				$mail->Port = $port;
+				$mail->setFrom($username, $from_name);
+				$mail->addAddress($email_address);
+				$mail->isHTML(true);
+				$mail->Subject = $subject;
+				$mail->Body    = $full_html;
+				$mail->send();
+				$message_status = 1;
+			} catch (\Exception $_e) {
+				// Silently fail so the cron job continues
+			}
+		}
+
+		// Log to sms_tables (channel='email') whether or not sending succeeded
+		$insert = "INSERT INTO `sms_tables` (`sms_content`,`date_sent`,`recipient_phone`,`sms_status`,`account_id`,`sms_type`,`channel`) VALUES (?,?,?,?,?,?,'email')";
+		$stmt = $conn->prepare($insert);
+		if ($stmt) {
+			$now      = date("YmdHis");
+			$sms_type = 3;
+			$stmt->bind_param("ssssss", $message, $now, $email_address, $message_status, $acc_id, $sms_type);
+			$stmt->execute();
+		}
+	}
+
 	function send_message($conn, $phone_number, $message, $acc_id, $send_flag = 0, $template_key = null, $extra = []) {
-		if (getPreferredChannel($conn) === 'whatsapp') {
+		$channel = getPreferredChannel($conn);
+		if ($channel === 'whatsapp') {
 			send_whatsapp($conn, $phone_number, $message, $acc_id, $send_flag, $template_key, $extra);
+		} elseif ($channel === 'email') {
+			send_email($conn, $message, $acc_id, $send_flag, $template_key, $extra);
 		} else {
 			send_sms($conn, $phone_number, $message, $acc_id, $send_flag);
 		}
