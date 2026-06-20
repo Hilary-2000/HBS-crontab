@@ -662,6 +662,7 @@
 			'[unfreeze_date]'  => $extra['unfreeze_date'] ?? '',
 			'[freeze_date]'    => $extra['freeze_date'] ?? $extra['frozen_date'] ?? '',
 			'[org_name]'       => $org_name,
+			'[receipt]'        => '',
 		];
 		return str_replace(array_keys($map), array_values($map), $template);
 	}
