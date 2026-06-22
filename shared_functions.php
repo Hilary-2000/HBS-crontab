@@ -344,9 +344,19 @@
 				is_array(json_decode($string))))) ? true : false;
 	}
 
-	function getPreferredChannel($conn) {
-		$select = "SELECT `value` FROM `settings` WHERE `keyword` = 'preferred_channel';";
-		$stmt = $conn->prepare($select);
+	function getPreferredChannel($conn, $client_id = null) {
+		if ($client_id) {
+			$stmt = $conn->prepare("SELECT `preferred_channel` FROM `client_tables` WHERE `client_id` = ? LIMIT 1");
+			if ($stmt) {
+				$stmt->bind_param("s", $client_id);
+				$stmt->execute();
+				$result = $stmt->get_result();
+				if ($result && ($row = $result->fetch_assoc()) && !empty($row['preferred_channel'])) {
+					return strtolower(trim($row['preferred_channel']));
+				}
+			}
+		}
+		$stmt = $conn->prepare("SELECT `value` FROM `settings` WHERE `keyword` = 'preferred_channel';");
 		$stmt->execute();
 		$result = $stmt->get_result();
 		if ($result && ($row = $result->fetch_assoc())) {
@@ -748,18 +758,20 @@
 		}
 
 		// Log to sms_tables (channel='email') whether or not sending succeeded
-		$insert = "INSERT INTO `sms_tables` (`sms_content`,`date_sent`,`recipient_phone`,`sms_status`,`account_id`,`sms_type`,`channel`) VALUES (?,?,?,?,?,?,'email')";
+		$insert = "INSERT INTO `sms_tables` (`sms_content`,`email_subject`,`date_sent`,`recipient_phone`,`sms_status`,`account_id`,`sms_type`,`channel`) VALUES (?,?,?,?,?,?,?,'email')";
 		$stmt = $conn->prepare($insert);
 		if ($stmt) {
-			$now      = date("YmdHis");
-			$sms_type = 3;
-			$stmt->bind_param("ssssss", $message, $now, $email_address, $message_status, $acc_id, $sms_type);
+			$now           = date("YmdHis");
+			$sms_type      = 3;
+			$saved_body    = isset($html_body) ? strip_tags($html_body) : $message;
+			$saved_subject = $subject ?? null;
+			$stmt->bind_param("sssssss", $saved_body, $saved_subject, $now, $email_address, $message_status, $acc_id, $sms_type);
 			$stmt->execute();
 		}
 	}
 
 	function send_message($conn, $phone_number, $message, $acc_id, $send_flag = 0, $template_key = null, $extra = []) {
-		$channel = getPreferredChannel($conn);
+		$channel = getPreferredChannel($conn, $acc_id);
 		if ($channel === 'whatsapp') {
 			send_whatsapp($conn, $phone_number, $message, $acc_id, $send_flag, $template_key, $extra);
 		} elseif ($channel === 'email') {
