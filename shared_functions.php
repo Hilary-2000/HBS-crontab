@@ -382,7 +382,7 @@
 		global $hostname, $dbusername, $dbpassword;
 		$conn_main = new mysqli($hostname, $dbusername, $dbpassword, 'mikrotik_cloud_manager');
 		if (mysqli_connect_errno()) return null;
-		$select = "SELECT `template_name`, `language`, `variables` FROM `whatsapp_automation_templates` WHERE `internal_name` = ? AND `is_active` = 1 AND `deleted` = '0'";
+		$select = "SELECT `template_name`, `category`, `language`, `variables` FROM `whatsapp_automation_templates` WHERE `internal_name` = ? AND `is_active` = 1 AND `deleted` = '0'";
 		$stmt = $conn_main->prepare($select);
 		$stmt->bind_param("s", $internal_name);
 		$stmt->execute();
@@ -391,12 +391,32 @@
 		if ($result && ($row = $result->fetch_assoc())) {
 			$template = [
 				'template_name' => $row['template_name'],
+				'category'      => $row['category'] ?? 'utility',
 				'language'      => $row['language'],
 				'variables'     => json_decode($row['variables'], true) ?? [],
 			];
 		}
 		$conn_main->close();
 		return $template;
+	}
+
+	function isWithinWhatsAppWindow($conn, $acc_id) {
+		$cutoff = date("YmdHis", strtotime('-24 hours'));
+		$stmt = $conn->prepare("
+			SELECT wc.received_at FROM whatsapp_chats wc
+			JOIN sms_tables s ON s.sms_id = wc.message_id
+			WHERE s.account_id = ? AND s.channel = 'whatsapp'
+			  AND wc.direction = 'inbound' AND s.deleted = '0'
+			ORDER BY wc.received_at DESC LIMIT 1
+		");
+		if (!$stmt) return false;
+		$stmt->bind_param("s", $acc_id);
+		$stmt->execute();
+		$result = $stmt->get_result();
+		if ($result && ($row = $result->fetch_assoc()) && !empty($row['received_at'])) {
+			return $row['received_at'] >= $cutoff;
+		}
+		return false;
 	}
 
 	function resolveWhatsAppVariables($variables, $client_id, $conn, $extra = []) {
@@ -450,7 +470,11 @@
 		if ($message == "" || $message == null || is_array($message)) {
 			return;
 		}
-		$message_status = 0;
+		$message_status  = 0;
+		$wa_message_id   = null;
+		$template_name   = null;
+		$message_category = 'utility';
+
 		if ($send_whatsapp == 1) {
 			$wa_keys      = getWhatsAppKeys($conn);
 			$phone_id     = $wa_keys[0];
@@ -460,6 +484,8 @@
 				if (!$formatted) return;
 				$template = getWhatsAppTemplate($template_key);
 				if ($template) {
+					$template_name    = $template['template_name'];
+					$message_category = $template['category'] ?? 'utility';
 					$params = resolveWhatsAppVariables($template['variables'], $acc_id, $conn, $extra);
 					$components = [];
 					if (!empty($params)) {
@@ -495,16 +521,29 @@
 					$decoded = json_decode($response, true);
 					if (isset($decoded['messages'][0]['id'])) {
 						$message_status = 1;
+						$wa_message_id  = $decoded['messages'][0]['id'];
 					}
 				}
 			}
 		}
-		$insert = "INSERT INTO `sms_tables` (`sms_content`,`date_sent`,`recipient_phone`,`sms_status`,`account_id`,`sms_type`) VALUES (?,?,?,?,?,?)";
+
+		$insert = "INSERT INTO `sms_tables` (`sms_content`,`date_sent`,`recipient_phone`,`sms_status`,`account_id`,`sms_type`,`channel`,`message_category`,`deleted`) VALUES (?,?,?,?,?,?,'whatsapp',?,'0')";
 		$stmt = $conn->prepare($insert);
 		$now      = date("YmdHis");
 		$sms_type = 3;
-		$stmt->bind_param("ssssss", $message, $now, $phone_number, $message_status, $acc_id, $sms_type);
+		$stmt->bind_param("sssssss", $message, $now, $phone_number, $message_status, $acc_id, $sms_type, $message_category);
 		$stmt->execute();
+		$msg_id = $conn->insert_id;
+
+		if ($msg_id) {
+			$window_open      = isWithinWhatsAppWindow($conn, $acc_id) ? 1 : 0;
+			$delivery_status  = $message_status ? 'sent' : 'failed';
+			$ins = "INSERT INTO `whatsapp_chats` (`message_id`,`direction`,`wa_message_id`,`message_category`,`template_name`,`delivery_status`,`window_open`) VALUES (?,?,?,?,?,?,?)";
+			$stmt2 = $conn->prepare($ins);
+			$dir = 'outbound';
+			$stmt2->bind_param("sssssss", $msg_id, $dir, $wa_message_id, $message_category, $template_name, $delivery_status, $window_open);
+			$stmt2->execute();
+		}
 	}
 
 	// ─── Email support ────────────────────────────────────────────────────────
