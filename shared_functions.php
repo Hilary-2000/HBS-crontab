@@ -141,17 +141,13 @@
 				$response = \curl_exec($ch);
 				\curl_close($ch);
 				$res = json_decode($response);
-				// return $res;
-				// echo json_encode($mobile)." pen <br>";
 				$message_status = 0;
-				$values = $res->responses[0];
+				$values = isset($res->responses[0]) ? $res->responses[0] : null;
 				if ($values != null) {
 					$message_status = 1;
-					foreach ($values as  $key => $value) {
-						// echo $key;
+					foreach ($values as $key => $value) {
 						if ($key == "response-code") {
 							if ($value == "200") {
-								// if its 200 the message is sent delete the
 								$message_status = 1;
 							}
 						}
