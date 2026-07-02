@@ -50,6 +50,7 @@ if ($result) {
         // if the organization expiry date is reached
         if (date("YmdHis")*1 > $row->expiry_date*1) {
             $total_cost = getMonthlyPayment($row, $hostname, $dbusername, $dbpassword, $months_last_active, $free_clients, $per_head_cost, $batch_of_client);
+            $wa_cost = getWaCost($row, $hostname, $dbusername, $dbpassword);
             if($wallet >= $total_cost && $wallet > 0 && $total_cost > 0){
                 // extend the client
                 $next_expiry_date = date("YmdHis", strtotime("1 month"));
@@ -58,19 +59,19 @@ if ($result) {
                 $stmt = $conn->prepare($update);
                 $stmt->bind_param("sss", $wallet, $next_expiry_date, $row->organization_id);
                 $stmt->execute();
-                
+
                 if ($row->organization_status == "1"){
                     // send the message
                     $message = get_sms($conn, "renew_account", "account_extended");
-                    $message = message_content($message,$row->organization_id,$conn,0,$total_cost);
-                    
+                    $message = message_content($message,$row->organization_id,$conn,0,$total_cost,$wa_cost);
+
                     // send_sms
                     send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
                 }else{
                     // send the message
                     $message = get_sms($conn, "renew_account", "account_blocked");
-                    $message = message_content($message,$row->organization_id,$conn,0,$total_cost);
-                    
+                    $message = message_content($message,$row->organization_id,$conn,0,$total_cost,$wa_cost);
+
                     // send_sms
                     send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
                 }
@@ -82,9 +83,9 @@ if ($result) {
                     $stmt = $conn->prepare($update);
                     $stmt->bind_param("s", $row->organization_id);
                     $stmt->execute();
-                    
+
                     $message = get_sms($conn, "renew_account", "account_deactivated");
-                    $message = message_content($message,$row->organization_id,$conn,0,$total_cost);
+                    $message = message_content($message,$row->organization_id,$conn,0,$total_cost,$wa_cost);
 
                     // send_sms
                     send_sms($conn, $row->organization_main_contact, $message, $row->organization_id);
@@ -140,6 +141,43 @@ function getMonthlyPayment($organization_data, $hostname, $dbusername, $dbpasswo
             $total_cost = $total_cost != 0 ? $total_cost : 1000;
         }
         return $total_cost;
+}
+
+// WhatsApp cost for the current calendar month, mirroring the exact criteria used by
+// mikrotik_cloud_manager's Organization::compute_wa_cost() and reminder_message.php's
+// getWaCost(): billable outbound conversations only, grouped by category, priced from
+// the central rates table.
+function getWaCost($organization_data, $hostname, $dbusername, $dbpassword){
+    $dbname = $organization_data->organization_database;
+    $conn2 = new mysqli($hostname, $dbusername, $dbpassword, $dbname);
+    if (mysqli_connect_errno()) {
+        return 0;
+    }
+
+    $fromDate = date('Ym') . '01000000';
+    $toDate   = date('Ymt') . '235959';
+
+    $sql = "SELECT SUM(sub.conversations * COALESCE(r.rate, 0)) AS total_cost
+            FROM (
+                SELECT wc.billing_category, COUNT(DISTINCT wc.conversation_id) AS conversations
+                FROM whatsapp_chats wc
+                JOIN sms_tables s ON s.sms_id = wc.message_id
+                WHERE wc.billable = 1 AND wc.direction = 'outbound' AND s.date_sent BETWEEN ? AND ?
+                GROUP BY wc.billing_category
+            ) sub
+            LEFT JOIN mikrotik_cloud_manager.whatsapp_billing_rates r ON r.category = sub.billing_category";
+    $stmt = $conn2->prepare($sql);
+    if (!$stmt) {
+        return 0;
+    }
+    $stmt->bind_param("ss", $fromDate, $toDate);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $total_cost = 0;
+    if ($result && ($row = $result->fetch_assoc()) && $row['total_cost'] !== null) {
+        $total_cost = $row['total_cost']*1;
+    }
+    return $total_cost;
 }
 
 function modifyDate($date, $period, $unit = 'days', $format = "YmdHis") {
@@ -218,7 +256,7 @@ function get_sms($conn, $category = null, $sub_category = null){
     }
 }
 
-function message_content($data,$organization_id, $conn, $trans_amount = 0, $this_month_payment = 0) {
+function message_content($data,$organization_id, $conn, $trans_amount = 0, $this_month_payment = 0, $wa_cost = 0) {
     $organization_data = [];
     $sql = "SELECT * FROM organizations WHERE `organization_id` = '".$organization_id."'";
     $stmt = $conn->prepare($sql);
@@ -254,6 +292,9 @@ function message_content($data,$organization_id, $conn, $trans_amount = 0, $this
         $data = str_replace("[exp_date]", $exp_date." at ".$exp_time, $data);
         $data = str_replace("[reg_date]", $reg_date, $data);
         $data = str_replace("[monthly_fees]", number_format($organization_data[0]->monthly_payment),$data);
+        $total_monthly_cost = ($organization_data[0]->monthly_payment*1) + ($wa_cost*1);
+        $data = str_replace("[wa_cost]", "Ksh ".number_format($wa_cost*1, 2), $data);
+        $data = str_replace("[total_monthly_cost]", "Ksh ".number_format($total_monthly_cost, 2), $data);
         $data = str_replace("[this_month_payment]", number_format($this_month_payment),$data);
         $data = str_replace("[org_contact]", $contacts, $data);
         $data = str_replace("[acc_no]", $account_no, $data);
@@ -290,6 +331,8 @@ function message_content($data,$organization_id, $conn, $trans_amount = 0, $this
         $data = str_replace("[exp_date]", $exp_date." at ".$exp_time, $data);
         $data = str_replace("[reg_date]", $reg_date, $data);
         $data = str_replace("[monthly_fees]", 0,$data);
+        $data = str_replace("[wa_cost]", "Ksh 0.00", $data);
+        $data = str_replace("[total_monthly_cost]", "Ksh 0.00", $data);
         $data = str_replace("[this_month_payment]", $this_month_payment,$data);
         $data = str_replace("[org_contact]", $contacts, $data);
         $data = str_replace("[acc_no]", $account_no, $data);
