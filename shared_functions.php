@@ -415,6 +415,36 @@
 		return false;
 	}
 
+	// Determine WhatsApp billing at send time, mirroring mikrotik_cloud's
+	// Controller::resolveOutboundBilling(). A freeform 'service' reply sent while the
+	// client's 24hr window is open is free; otherwise reuse an already-open paid window
+	// for this client, or open a new one, using the message's own category.
+	function resolveOutboundWhatsAppBilling($conn, $acc_id, $category) {
+		if ($category === 'service' && isWithinWhatsAppWindow($conn, $acc_id)) {
+			return ['billable' => 0, 'billing_category' => $category, 'conversation_id' => null];
+		}
+
+		$cutoff = date("YmdHis", strtotime('-24 hours'));
+		$stmt = $conn->prepare("
+			SELECT wc.conversation_id, wc.billing_category FROM whatsapp_chats wc
+			JOIN sms_tables s ON s.sms_id = wc.message_id
+			WHERE s.account_id = ? AND s.channel = 'whatsapp'
+			  AND wc.direction = 'outbound' AND wc.billable = 1 AND s.deleted = '0'
+			  AND s.date_sent >= ?
+			ORDER BY s.date_sent DESC LIMIT 1
+		");
+		if ($stmt) {
+			$stmt->bind_param("ss", $acc_id, $cutoff);
+			$stmt->execute();
+			$result = $stmt->get_result();
+			if ($result && ($row = $result->fetch_assoc())) {
+				return ['billable' => 0, 'billing_category' => $row['billing_category'], 'conversation_id' => $row['conversation_id']];
+			}
+		}
+
+		return ['billable' => 1, 'billing_category' => $category, 'conversation_id' => 'local_' . $acc_id . '_' . date('YmdHis')];
+	}
+
 	function resolveWhatsAppVariables($variables, $client_id, $conn, $extra = []) {
 		$client = [];
 		if ($client_id) {
@@ -534,10 +564,23 @@
 		if ($msg_id) {
 			$window_open      = isWithinWhatsAppWindow($conn, $acc_id) ? 1 : 0;
 			$delivery_status  = $message_status ? 'sent' : 'failed';
-			$ins = "INSERT INTO `whatsapp_chats` (`message_id`,`direction`,`wa_message_id`,`message_category`,`template_name`,`delivery_status`,`window_open`) VALUES (?,?,?,?,?,?,?)";
-			$stmt2 = $conn->prepare($ins);
 			$dir = 'outbound';
-			$stmt2->bind_param("sssssss", $msg_id, $dir, $wa_message_id, $message_category, $template_name, $delivery_status, $window_open);
+
+			// Only a message that was actually dispatched can be billable — Meta never
+			// charges for a send that was skipped or failed.
+			$billable         = 0;
+			$billing_category = $message_category;
+			$conversation_id  = null;
+			if ($message_status == 1) {
+				$billing           = resolveOutboundWhatsAppBilling($conn, $acc_id, $message_category);
+				$billable          = $billing['billable'];
+				$billing_category  = $billing['billing_category'];
+				$conversation_id   = $billing['conversation_id'];
+			}
+
+			$ins = "INSERT INTO `whatsapp_chats` (`message_id`,`direction`,`wa_message_id`,`conversation_id`,`billing_category`,`billable`,`message_category`,`template_name`,`delivery_status`,`window_open`) VALUES (?,?,?,?,?,?,?,?,?,?)";
+			$stmt2 = $conn->prepare($ins);
+			$stmt2->bind_param("ssssssssss", $msg_id, $dir, $wa_message_id, $conversation_id, $billing_category, $billable, $message_category, $template_name, $delivery_status, $window_open);
 			$stmt2->execute();
 		}
 	}
