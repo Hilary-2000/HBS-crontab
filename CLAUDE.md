@@ -37,7 +37,7 @@ All multi-org scripts loop: connect to `mikrotik_cloud_manager` → fetch active
 |------|---------|
 | `db_credential.php` | Raw DB credentials (`$hostname`, `$dbusername`, `$dbpassword`) |
 | `db_connect.php` | Opens `$conn1` to `mikrotik_cloud_manager` using credentials above |
-| `shared_functions.php` | `activate_user()`, `deactivate_client()`, `send_sms()`, `get_sms()`, `message_content()`, `getSMSKeys()`, `isJson()` |
+| `shared_functions.php` | `activate_user()`, `deactivate_client()`, `send_sms()` (send + insert row), `send_sms_via_provider()` (send only, returns 1/0, or null for an invalid number), `get_sms()`, `message_content()`, `getSMSKeys()`, `isJson()` |
 | `allowed_ip.php` | IP allowlist check (currently commented out) + `formatKenyanPhone()` |
 | `routeros_api.php` / `routeros_api2.php` | RouterOS API client classes for communicating with MikroTik routers |
 
@@ -50,6 +50,7 @@ All multi-org scripts loop: connect to `mikrotik_cloud_manager` → fetch active
 | `check_client_status.php` | Hourly | Re-deactivates clients whose expiry fell in the last 24 hours |
 | `remindpayment.php` | Daily | Sends SMS reminders to clients expiring yesterday/today/tomorrow (skips those with sufficient wallet) |
 | `freeze_clients.php` | Every minute | Unfreeze clients whose freeze period ended; freeze those whose freeze date arrived |
+| `send_queued_sms.php` | On demand (link, not scheduled) | SMS sending agent: `mikrotik_cloud` calls `send_queued_sms.php?db=<org_db>` after queueing bulk SMS. Claims queued `sms_tables` rows (`sent_status = 0`) in atomic batches of 50 and sends them via `send_sms_via_provider()`. Claimed rows left unsent for 10 minutes are marked failed, never re-sent. See `mikrotik_cloud`'s CLAUDE.md "Bulk SMS Sending Agent" |
 | `import_config_router.php` | On demand | Connects via SSTP VPN to each org's routers and imports a RouterOS config script |
 | `organization/activate_organizations.php` | Hourly | Auto-renews or deactivates org subscriptions based on wallet balance |
 | `organization/reminder_message.php` | Daily | Sends payment reminders to orgs expiring yesterday/today/tomorrow |

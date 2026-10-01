@@ -121,161 +121,14 @@
 			// do not send.
 			return;
 		}
-		// get the sms api keys
-		$sms_api_keys = getSMSKeys($conn);
-		$apikey = $sms_api_keys[0];
-		$partnerID = $sms_api_keys[1];
-		$shortcode = $sms_api_keys[2];
-		$sms_sender = $sms_api_keys[3];
 
 		// send the sms
-		$mobile = $phone_number; // Bulk messages can be comma separated
 		$message_status = 0;
 		if($send_sms == 1){
-			if($sms_sender == "celcom"){
-				$finalURL = "https://isms.celcomafrica.com/api/services/sendsms/?apikey=" . urlencode($apikey) . "&partnerID=" . urlencode($partnerID) . "&message=" . urlencode($message) . "&shortcode=$shortcode&mobile=$mobile";
-				$ch = \curl_init();
-				\curl_setopt($ch, CURLOPT_URL, $finalURL);
-				\curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-				\curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-				$response = \curl_exec($ch);
-				\curl_close($ch);
-				$res = json_decode($response);
-				$message_status = 0;
-				$values = isset($res->responses[0]) ? $res->responses[0] : null;
-				if ($values != null) {
-					$message_status = 1;
-					foreach ($values as $key => $value) {
-						if ($key == "response-code") {
-							if ($value == "200") {
-								$message_status = 1;
-							}
-						}
-					}
-				}
-			}elseif($sms_sender == "afrokatt"){
-				$finalURL = "https://account.afrokatt.com/sms/api?action=send-sms&api_key=".urlencode($apikey)."&to=".$mobile."&from=".$shortcode."&sms=".urlencode($message);
-				$ch = \curl_init();
-				\curl_setopt($ch, CURLOPT_URL, $finalURL);
-				\curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-				\curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-				$response = \curl_exec($ch);
-				\curl_close($ch);
-				$res = json_decode($response);
-				$values = $res->code;
-				if (isset($res->code)) {
-					if($res->code == "200"){
-						$message_status = 1;
-					}
-				}
-			}elseif ($sms_sender == "hostpinnacle") {
-				// API URL
-				$url = "https://smsportal.hostpinnacle.co.ke/SMSApi/send";
-				
-				// Prepare POST fields
-				$formatted_mobile = formatKenyanPhone($mobile);
-				if (!$formatted_mobile) return;
-				$postData = [
-					"userid"     => $apikey,
-					"password"     => $partnerID,
-					"senderid"   => urlencode($shortcode),
-					"msg"        => urlencode($message),
-					"mobile"   => $formatted_mobile,
-					"sendMethod" => "quick",
-					"msgType"    => "text",  // or 'unicode' if sending special characters
-					"output"     => "json"   // Response format: json, xml, plain
-				];
-				// return $postData;
-				
-				// Initialize cURL
-				$ch = \curl_init();
-				\curl_setopt_array($ch, [
-					CURLOPT_URL            => $url,
-					CURLOPT_RETURNTRANSFER => true,
-					CURLOPT_POST           => true,
-					CURLOPT_POSTFIELDS     => $postData,
-					CURLOPT_SSL_VERIFYPEER => false
-				]);
-				$response = \curl_exec($ch);
-				\curl_close($ch);
-				$message_status = 1;
-			}elseif ($sms_sender == "talksasa") {
-				$url = "https://bulksms.talksasa.com/api/v3/sms/send";
-				$phone = explode(",",$mobile);
-				$phone = array_filter(array_map(function($num) {
-					return formatKenyanPhone($num);
-				}, $phone));
-				if (empty($phone)) return;
-				$phone = implode(",", $phone);
-
-				$payload = [
-					"recipient" => $phone,
-					"sender_id" => $shortcode,
-					"message" => $message,
-					"type" => "plain", // or 'unicode' if sending special characters
-				];
-
-				$ch = curl_init($url);
-				curl_setopt_array($ch, [
-					CURLOPT_RETURNTRANSFER => true,
-					CURLOPT_FAILONERROR => false,
-					CURLOPT_HTTPHEADER => [
-						"Authorization: Bearer " . $apikey,
-						"Accept: application/json",
-						"Content-Type: application/json",
-					],
-					CURLOPT_POST => true,
-					CURLOPT_POSTFIELDS => json_encode($payload),
-				]);
-
-				$response = curl_exec($ch);
-				$error = curl_error($ch);
-				$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-				curl_close($ch);
-				$message_status = 0;
-				$response = json_decode($response, true);
-				if (isset($response['status']) && $response['status'] == "success") {
-					$message_status = 1;
-					// echo "Message sent successfully.";
-				}
-			}elseif ($sms_sender == "blessedtexts") {
-				$url = "https://sms.blessedtexts.com/api/sms/v1/sendsms";
-				$phone = explode(",",$mobile);
-				$phone = array_filter(array_map(function($num) {
-					return formatKenyanPhone($num);
-				}, $phone));
-				if (empty($phone)) return;
-				$phone = implode(",", $phone);
-
-				$payload = [
-					"phone" => $phone,
-					"sender_id" => $shortcode,
-					"message" => $message,
-					"api_key" => $apikey
-				];
-
-				$ch = curl_init($url);
-				curl_setopt_array($ch, [
-					CURLOPT_RETURNTRANSFER => true,
-					CURLOPT_FAILONERROR    => false,
-					CURLOPT_HTTPHEADER     => [
-						"Accept: application/json",
-						"Content-Type: application/json",
-					],
-					CURLOPT_POST           => true,
-					CURLOPT_POSTFIELDS     => json_encode($payload),
-				]);
-
-				$response = curl_exec($ch);
-				$error    = curl_error($ch);
-				$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-				curl_close($ch);
-				$message_status = 0;
-				$decoded = json_decode($response, true);
-				if(isset($decoded['status_code']) && $decoded['status_code'] == "1000"){
-					$message_status = 1;
-					// echo "Message sent successfully.";
-				}
+			$message_status = send_sms_via_provider($conn, $phone_number, $message);
+			if ($message_status === null) {
+				// invalid phone number for this provider, nothing sent or saved
+				return;
 			}
 		}
 
@@ -286,6 +139,168 @@
 		$sms_type = 2;
 		$stmt->bind_param("ssssss",$message,$now,$phone_number,$message_status,$acc_id,$sms_type);
 		$stmt->execute();
+	}
+
+	// Sends one message through the org's configured SMS provider without saving
+	// anything to `sms_tables`. Returns 1 if the provider accepted it, 0 if not, or
+	// null if the phone number is invalid for the provider. Used by send_sms() and
+	// by send_queued_sms.php, which updates its own already-queued rows.
+	function send_sms_via_provider($conn, $phone_number, $message){
+		// get the sms api keys
+		$sms_api_keys = getSMSKeys($conn);
+		$apikey = $sms_api_keys[0];
+		$partnerID = $sms_api_keys[1];
+		$shortcode = $sms_api_keys[2];
+		$sms_sender = $sms_api_keys[3];
+
+		$mobile = $phone_number; // Bulk messages can be comma separated
+		$message_status = 0;
+		if($sms_sender == "celcom"){
+			$finalURL = "https://isms.celcomafrica.com/api/services/sendsms/?apikey=" . urlencode($apikey) . "&partnerID=" . urlencode($partnerID) . "&message=" . urlencode($message) . "&shortcode=$shortcode&mobile=$mobile";
+			$ch = \curl_init();
+			\curl_setopt($ch, CURLOPT_URL, $finalURL);
+			\curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+			\curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+			$response = \curl_exec($ch);
+			\curl_close($ch);
+			$res = json_decode($response);
+			$message_status = 0;
+			$values = isset($res->responses[0]) ? $res->responses[0] : null;
+			if ($values != null) {
+				$message_status = 1;
+				foreach ($values as $key => $value) {
+					if ($key == "response-code") {
+						if ($value == "200") {
+							$message_status = 1;
+						}
+					}
+				}
+			}
+		}elseif($sms_sender == "afrokatt"){
+			$finalURL = "https://account.afrokatt.com/sms/api?action=send-sms&api_key=".urlencode($apikey)."&to=".$mobile."&from=".$shortcode."&sms=".urlencode($message);
+			$ch = \curl_init();
+			\curl_setopt($ch, CURLOPT_URL, $finalURL);
+			\curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+			\curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+			$response = \curl_exec($ch);
+			\curl_close($ch);
+			$res = json_decode($response);
+			$values = $res->code;
+			if (isset($res->code)) {
+				if($res->code == "200"){
+					$message_status = 1;
+				}
+			}
+		}elseif ($sms_sender == "hostpinnacle") {
+			// API URL
+			$url = "https://smsportal.hostpinnacle.co.ke/SMSApi/send";
+			
+			// Prepare POST fields
+			$formatted_mobile = formatKenyanPhone($mobile);
+			if (!$formatted_mobile) return null;
+			$postData = [
+				"userid"     => $apikey,
+				"password"     => $partnerID,
+				"senderid"   => urlencode($shortcode),
+				"msg"        => urlencode($message),
+				"mobile"   => $formatted_mobile,
+				"sendMethod" => "quick",
+				"msgType"    => "text",  // or 'unicode' if sending special characters
+				"output"     => "json"   // Response format: json, xml, plain
+			];
+			// return $postData;
+			
+			// Initialize cURL
+			$ch = \curl_init();
+			\curl_setopt_array($ch, [
+				CURLOPT_URL            => $url,
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_POST           => true,
+				CURLOPT_POSTFIELDS     => $postData,
+				CURLOPT_SSL_VERIFYPEER => false
+			]);
+			$response = \curl_exec($ch);
+			\curl_close($ch);
+			$message_status = 1;
+		}elseif ($sms_sender == "talksasa") {
+			$url = "https://bulksms.talksasa.com/api/v3/sms/send";
+			$phone = explode(",",$mobile);
+			$phone = array_filter(array_map(function($num) {
+				return formatKenyanPhone($num);
+			}, $phone));
+			if (empty($phone)) return null;
+			$phone = implode(",", $phone);
+
+			$payload = [
+				"recipient" => $phone,
+				"sender_id" => $shortcode,
+				"message" => $message,
+				"type" => "plain", // or 'unicode' if sending special characters
+			];
+
+			$ch = curl_init($url);
+			curl_setopt_array($ch, [
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_FAILONERROR => false,
+				CURLOPT_HTTPHEADER => [
+					"Authorization: Bearer " . $apikey,
+					"Accept: application/json",
+					"Content-Type: application/json",
+				],
+				CURLOPT_POST => true,
+				CURLOPT_POSTFIELDS => json_encode($payload),
+			]);
+
+			$response = curl_exec($ch);
+			$error = curl_error($ch);
+			$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+			curl_close($ch);
+			$message_status = 0;
+			$response = json_decode($response, true);
+			if (isset($response['status']) && $response['status'] == "success") {
+				$message_status = 1;
+				// echo "Message sent successfully.";
+			}
+		}elseif ($sms_sender == "blessedtexts") {
+			$url = "https://sms.blessedtexts.com/api/sms/v1/sendsms";
+			$phone = explode(",",$mobile);
+			$phone = array_filter(array_map(function($num) {
+				return formatKenyanPhone($num);
+			}, $phone));
+			if (empty($phone)) return null;
+			$phone = implode(",", $phone);
+
+			$payload = [
+				"phone" => $phone,
+				"sender_id" => $shortcode,
+				"message" => $message,
+				"api_key" => $apikey
+			];
+
+			$ch = curl_init($url);
+			curl_setopt_array($ch, [
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_FAILONERROR    => false,
+				CURLOPT_HTTPHEADER     => [
+					"Accept: application/json",
+					"Content-Type: application/json",
+				],
+				CURLOPT_POST           => true,
+				CURLOPT_POSTFIELDS     => json_encode($payload),
+			]);
+
+			$response = curl_exec($ch);
+			$error    = curl_error($ch);
+			$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+			curl_close($ch);
+			$message_status = 0;
+			$decoded = json_decode($response, true);
+			if(isset($decoded['status_code']) && $decoded['status_code'] == "1000"){
+				$message_status = 1;
+				// echo "Message sent successfully.";
+			}
+		}
+		return $message_status;
 	}
 
 	function getSMSKeys($conn){
