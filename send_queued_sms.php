@@ -52,6 +52,26 @@
 		exit();
 	}
 
+	// mikrotik_cloud calls with &background=1: answer right away and close the
+	// connection so it doesn't have to wait, then keep sending (ignore_user_abort
+	// above). Without it (browser / manual run) the full summary is returned at the end.
+	if (isset($_GET['background']) && $_GET['background'] == "1") {
+		$ack = json_encode(["success" => true, "message" => "Agent started."]);
+		if (function_exists('fastcgi_finish_request')) {
+			echo $ack;
+			fastcgi_finish_request();
+		} else {
+			while (ob_get_level() > 0) {
+				ob_end_clean();
+			}
+			header('Connection: close');
+			header('Content-Encoding: none');
+			header('Content-Length: ' . strlen($ack));
+			echo $ack;
+			flush();
+		}
+	}
+
 	$summary = ["success" => true, "sent" => 0, "failed" => 0, "stale_marked_failed" => 0, "unsendable_marked_failed" => 0];
 
 	// 1. rows a crashed/killed run claimed but never sent: mark failed so the operator

@@ -38,7 +38,7 @@ All multi-org scripts loop: connect to `mikrotik_cloud_manager` → fetch active
 | `db_credential.php` | Raw DB credentials (`$hostname`, `$dbusername`, `$dbpassword`) |
 | `db_connect.php` | Opens `$conn1` to `mikrotik_cloud_manager` using credentials above |
 | `shared_functions.php` | `activate_user()`, `deactivate_client()`, `send_sms()` (send + insert row), `send_sms_via_provider()` (send only, returns 1/0, or null for an invalid number), `get_sms()`, `message_content()`, `getSMSKeys()`, `isJson()` |
-| `allowed_ip.php` | IP allowlist check (currently commented out) + `formatKenyanPhone()` |
+| `allowed_ip.php` | IP allowlist check (commented out in this repo copy, but **enabled on the live server** — any server that calls a script over HTTP, e.g. mikrotik_cloud calling `send_queued_sms.php`, must have its IP allowed there) + `formatKenyanPhone()` |
 | `routeros_api.php` / `routeros_api2.php` | RouterOS API client classes for communicating with MikroTik routers |
 
 ### Cron scripts
